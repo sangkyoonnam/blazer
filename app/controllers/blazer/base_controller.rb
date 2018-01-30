@@ -26,8 +26,10 @@ module Blazer
 
       def process_vars(statement, data_source)
         (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq!
+        awesome_variables = {}
         @bind_vars.each do |var|
           params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]
+          awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
         end
         @success = @bind_vars.all? { |v| params[v] }
 
@@ -53,8 +55,13 @@ module Blazer
                 value = value.to_f
               end
             end
-            # statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
-            statement.gsub!("{#{var}}", value)
+
+            variable = awesome_variables[var]
+            if variable.present? && variable['type'] == 'condition'
+              statement.gsub!("{#{var}}", value)
+            else
+              statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
+            end
           end
         end
       end
@@ -84,17 +91,13 @@ module Blazer
         # awesome_var_data_source =
         #     ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.smart_variables[var] }
         awesome_var_data_source =
-            ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.awesome_variables['task'] }  # 이 부분도 추후 수정
-        options = {}
+            ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.awesome_variables[var] }  # 이 부분도 추후 수정
 
         if awesome_var_data_source
-          # query = awesome_var_data_source.smart_variables[var]
-          query = awesome_var_data_source.awesome_variables['task']['checkbox']['tags']
+          query = awesome_var_data_source.awesome_variables[var]
 
           if query.is_a? Hash
-            awesome_var = query.map { |k,v| [v, k] }
-          elsif query.is_a? Array
-            awesome_var = query.map { |v| [v, v] }
+            awesome_var = query
           elsif query
             result = awesome_var_data_source.run_statement(query)
             awesome_var = result.rows.map { |v| v.reverse }
@@ -102,7 +105,7 @@ module Blazer
           end
         end
 
-        [awesome_var, error, options]
+        [awesome_var, error]
       end
 
       def variable_params

@@ -9,8 +9,17 @@
 
     <% @bind_vars.each_with_index do |var, i| %>
       <%= label_tag var, var %>
-      <% if (data = @smart_vars[var]) %>
-        <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
+      <% if (awesome_vars = @awesome_vars[var]) %>
+        <% data = awesome_vars['value'].map { |v| [v['name'], v['condition']] } %>
+        <% if awesome_vars['style'] == 'select' %>
+          <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
+        <% elsif awesome_vars['style'] == 'checkbox' %>
+           checkbox
+        <% elsif awesome_vars['style'] == 'radio' %>
+            radio
+        <% else %>
+          radio button
+        <% end %>
         <script>
           $("#<%= var %>").selectize({
             create: true

@@ -58,13 +58,12 @@ module Blazer
       @statement = @query.statement.dup
       process_vars(@statement, @query.data_source)
 
-      @smart_vars = {}
+      @awesome_vars = {}
       @sql_errors = []
       data_source = Blazer.data_sources[@query.data_source]
       @bind_vars.each do |var|
-        # smart_var, error = parse_smart_variables(var, data_source)
-        smart_var, error, options = parse_awesome_variables(var, data_source)
-        @smart_vars[var] = smart_var if smart_var
+        awesome_var, error = parse_awesome_variables(var, data_source)
+        @awesome_vars[var] = awesome_var if awesome_var
         @sql_errors << error if error
       end
 
