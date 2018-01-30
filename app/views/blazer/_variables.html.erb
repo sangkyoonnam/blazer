@@ -23,6 +23,8 @@
           <input type='hidden' name='<%= var %>' />
         <% elsif awesome_vars['style'] == 'radio' %>
             radio
+        <% elsif %w(text value).include? awesome_vars['style'] %>
+           <input type='text' name='<%= var %>' />
         <% else %>
           radio button
         <% end %>
@@ -119,13 +121,23 @@
         event.preventDefault();
 
         <% @bind_vars.each_with_index do |var, i| %>
-        {
-            var arr=[];
-            $("input:checked[name='<%= var %>[]']").each(function () {
-                arr.push($(this).val());
-            });
-            $("input[name='<%= var %>']").val(arr.join(' AND '));
-        }
+          <% if (awesome_vars = @awesome_vars[var]) %>
+            <% if (awesome_vars['style'] == 'checkbox') %>
+            {
+
+                var arr=[];
+                $("input:checked[name='<%= var %>[]']").each(function () {
+                    arr.push($(this).val());
+                });
+                $("input[name='<%= var %>']").val(arr.join(' AND '));
+            }
+            <% elsif (awesome_vars['style'] == 'text') %>
+            {
+                var val = $("input[name='<%= var %>']").val();
+                $("input[name='<%= var %>']").val("<%= var %>=" + val);
+            }
+            <% end %>
+          <% end %>
         <% end %>
 
         $(this).unbind('submit').submit();
