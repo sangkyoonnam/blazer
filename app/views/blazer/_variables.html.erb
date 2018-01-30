@@ -1,5 +1,5 @@
 <% if @bind_vars.any? %>
-  <form id="bind" method="get" action="<%= action %>" class="form-inline" style="margin-bottom: 10px;">
+  <form id="bind_" method="get" action="<%= action %>" class="form-inline" style="margin-bottom: 10px;">
     <% date_vars = ["start_time", "end_time"] %>
     <% if (date_vars - @bind_vars).empty? %>
       <% @bind_vars = @bind_vars - date_vars %>
@@ -8,22 +8,28 @@
     <% end %>
 
     <% @bind_vars.each_with_index do |var, i| %>
-      <%= label_tag var, var %>
+      <%= label_tag var, var.capitalize %>
       <% if (awesome_vars = @awesome_vars[var]) %>
         <% data = awesome_vars['value'].map { |v| [v['name'], v['condition']] } %>
         <% if awesome_vars['style'] == 'select' %>
           <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
         <% elsif awesome_vars['style'] == 'checkbox' %>
-           checkbox
+          <% data.each do |datum| %>
+            <div style="display: inline-block;">
+              <input type="checkbox" id="<%= datum[0] %>" name="<%= var %>[]" value="<%= datum[1] %>">
+              <label for="<%= datum[0] %>"><%= datum[0] %></label>
+            </div>
+          <% end %>
+          <input type='hidden' name='<%= var %>' />
         <% elsif awesome_vars['style'] == 'radio' %>
             radio
         <% else %>
           radio button
         <% end %>
         <script>
-          $("#<%= var %>").selectize({
-            create: true
-          });
+//          $("#<%= var %>").selectize({
+//              create: true
+//          });
         </script>
       <% else %>
         <%= text_field_tag var, params[var], style: "width: 120px; margin-right: 20px;", autofocus: i == 0 && !var.end_with?("_at") && !params[var], class: "form-control" %>
@@ -108,4 +114,21 @@
 
     <input type="submit" class="btn btn-success" value="Run" style="vertical-align: top;" />
   </form>
+  <script>
+    $('#bind_').submit(function(event) {
+        event.preventDefault();
+
+        <% @bind_vars.each_with_index do |var, i| %>
+        {
+            var arr=[];
+            $("input:checked[name='<%= var %>[]']").each(function () {
+                arr.push($(this).val());
+            });
+            $("input[name='<%= var %>']").val(arr.join(' AND '));
+        }
+        <% end %>
+
+        $(this).unbind('submit').submit();
+    })
+  </script>
 <% end %>

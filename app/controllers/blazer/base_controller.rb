@@ -54,11 +54,16 @@ module Blazer
               elsif value =~ /\A\d+\.\d+\z/
                 value = value.to_f
               end
+
             end
 
             variable = awesome_variables[var]
             if variable.present? && variable['type'] == 'condition'
-              statement.gsub!("{#{var}}", value)
+              if value.present?
+                statement.gsub!("{#{var}}", value)
+              else
+                statement.gsub!("{#{var}}", 'true')
+              end
             else
               statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
             end
