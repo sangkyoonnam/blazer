@@ -44,6 +44,10 @@ module Blazer
       settings["smart_variables"] || {}
     end
 
+    def awesome_variables
+      settings["awesome_variables"] || {}
+    end
+
     def variable_defaults
       settings["variable_defaults"] || {}
     end

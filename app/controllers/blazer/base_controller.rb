@@ -53,7 +53,8 @@ module Blazer
                 value = value.to_f
               end
             end
-            statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
+            # statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
+            statement.gsub!("{#{var}}", value)
           end
         end
       end
@@ -77,6 +78,31 @@ module Blazer
         end
 
         [smart_var, error]
+      end
+
+      def parse_awesome_variables(var, data_source)
+        # awesome_var_data_source =
+        #     ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.smart_variables[var] }
+        awesome_var_data_source =
+            ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.awesome_variables['task'] }  # 이 부분도 추후 수정
+        options = {}
+
+        if awesome_var_data_source
+          # query = awesome_var_data_source.smart_variables[var]
+          query = awesome_var_data_source.awesome_variables['task']['checkbox']['tags']
+
+          if query.is_a? Hash
+            awesome_var = query.map { |k,v| [v, k] }
+          elsif query.is_a? Array
+            awesome_var = query.map { |v| [v, v] }
+          elsif query
+            result = awesome_var_data_source.run_statement(query)
+            awesome_var = result.rows.map { |v| v.reverse }
+            error = result.error if result.error
+          end
+        end
+
+        [awesome_var, error, options]
       end
 
       def variable_params
