@@ -10,7 +10,7 @@ module Blazer
           options = {}
           options[:timeout] = data_source.timeout.to_i * 1000 if data_source.timeout
           results = bigquery.query(statement, options) # ms
-          if results.complete?
+          if results.present?  # TODO: 왜 기존 소스는 complete?로 되어 있는지 확인
             columns = results.first.keys.map(&:to_s) if results.size > 0
             rows = results.map(&:values)
           else
