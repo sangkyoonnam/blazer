@@ -1,3 +1,23 @@
+<style>
+
+  label {
+    display: inline-block;
+    margin-bottom: .5rem;
+  }
+
+  .input-group {
+    position: relative;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
+    -webkit-box-align: stretch;
+    -ms-flex-align: stretch;
+    align-items: stretch;
+    width: 100%;
+  }
+</style>
 <% if @bind_vars.any? %>
   <form id="bind_" method="get" action="<%= action %>" class="form-inline" style="margin-bottom: 10px;">
     <% date_vars = ["start_time", "end_time"] %>
@@ -8,44 +28,48 @@
     <% end %>
 
     <% @bind_vars.each_with_index do |var, i| %>
-      <%= label_tag var, var.capitalize %>
-      <% if (awesome_vars = @awesome_vars[var]) %>
-        <% data = awesome_vars['value'].map { |v| [v['name'], v['condition']] } %>
-        <% if awesome_vars['style'] == 'select' %>
-          <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
-        <% elsif awesome_vars['style'] == 'checkbox' %>
-          <% data.each do |datum| %>
-            <div style="display: inline-block;">
-              <input type="checkbox" id="<%= datum[0] %>" name="<%= var %>[]" value="<%= datum[1] %>">
-              <label for="<%= datum[0] %>"><%= datum[0] %></label>
-            </div>
+      <div>
+        <%= label_tag var.capitalize %>
+        <div class="input-group">
+          <% if (awesome_vars = @awesome_vars[var]) %>
+            <% data = awesome_vars['value'].map { |v| [v['name'], v['condition']] } %>
+            <% if awesome_vars['style'] == 'select' %>
+              <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
+            <% elsif awesome_vars['style'] == 'checkbox' %>
+              <% data.each do |datum| %>
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" class="custom-control-input" id="<%= datum[0] %>" name="<%= var %>[]" value="<%= datum[1] %>">
+                  <label class="custom-control-label" for="<%= datum[0] %>"><%= datum[0] %></label>
+                </div>
+              <% end %>
+              <input type='hidden' name='<%= var %>' />
+            <% elsif awesome_vars['style'] == 'radio' %>
+                radio
+            <% elsif %w(text value).include? awesome_vars['style'] %>
+               <input type='text' name='<%= var %>' />
+            <% else %>
+              radio button
+            <% end %>
+            <script>
+              $("#<%= var %>").selectize({
+                  create: true
+              });
+            </script>
+          <% else %>
+            <%= text_field_tag var, params[var], style: "width: 120px; margin-right: 20px;", autofocus: i == 0 && !var.end_with?("_at") && !params[var], class: "form-control" %>
+            <% if var.end_with?("_at") %>
+              <script>
+                $("#<%= var %>").daterangepicker({singleDatePicker: true, locale: {format: "YYYY-MM-DD"}, autoUpdateInput: false});
+                // hack to start with empty date
+                $("#<%= var %>").on("apply.daterangepicker", function(ev, picker) {
+                  $(this).val(picker.startDate.format("YYYY-MM-DD"));
+                  $(this).change();
+                });
+              </script>
+            <% end %>
           <% end %>
-          <input type='hidden' name='<%= var %>' />
-        <% elsif awesome_vars['style'] == 'radio' %>
-            radio
-        <% elsif %w(text value).include? awesome_vars['style'] %>
-           <input type='text' name='<%= var %>' />
-        <% else %>
-          radio button
-        <% end %>
-        <script>
-//          $("#<%= var %>").selectize({
-//              create: true
-//          });
-        </script>
-      <% else %>
-        <%= text_field_tag var, params[var], style: "width: 120px; margin-right: 20px;", autofocus: i == 0 && !var.end_with?("_at") && !params[var], class: "form-control" %>
-        <% if var.end_with?("_at") %>
-          <script>
-            $("#<%= var %>").daterangepicker({singleDatePicker: true, locale: {format: "YYYY-MM-DD"}, autoUpdateInput: false});
-            // hack to start with empty date
-            $("#<%= var %>").on("apply.daterangepicker", function(ev, picker) {
-              $(this).val(picker.startDate.format("YYYY-MM-DD"));
-              $(this).change();
-            });
-          </script>
-        <% end %>
-      <% end %>
+        </div>
+      </div>
     <% end %>
 
     <% if date_vars %>
@@ -114,7 +138,8 @@
       </script>
     <% end %>
 
-    <input type="submit" class="btn btn-success" value="Run" style="vertical-align: top;" />
+    <input type="submit" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" />
+    <hr>
   </form>
   <script>
     $('#bind_').submit(function(event) {
