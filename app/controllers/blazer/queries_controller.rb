@@ -81,6 +81,10 @@ module Blazer
     def edit
     end
 
+    def export
+      render :json => 'working'
+    end
+
     def run
       @statement = params[:statement]
       data_source = params[:data_source]
