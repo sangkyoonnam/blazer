@@ -3,6 +3,7 @@
   label {
     display: inline-block;
     margin-bottom: .5rem;
+    margin-top: .5rem;
   }
 
   .input-group {
@@ -16,6 +17,10 @@
     -ms-flex-align: stretch;
     align-items: stretch;
     width: 100%;
+  }
+
+  .custom-checkbox + .custom-checkbox {
+    margin-left: 12px;
   }
 </style>
 <% if @bind_vars.any? %>
@@ -37,7 +42,7 @@
               <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
             <% elsif awesome_vars['style'] == 'checkbox' %>
               <% data.each do |datum| %>
-                <div class="custom-control custom-checkbox">
+                <div class="custom-control custom-checkbox" style="display: inline-block;">
                   <input type="checkbox" class="custom-control-input" id="<%= datum[0] %>" name="<%= var %>[]" value="<%= datum[1] %>">
                   <label class="custom-control-label" for="<%= datum[0] %>"><%= datum[0] %></label>
                 </div>
@@ -149,12 +154,11 @@
           <% if (awesome_vars = @awesome_vars[var]) %>
             <% if (awesome_vars['style'] == 'checkbox') %>
             {
-
                 var arr=[];
                 $("input:checked[name='<%= var %>[]']").each(function () {
                     arr.push($(this).val());
                 });
-                $("input[name='<%= var %>']").val(arr.join(' AND '));
+                $("input[name='<%= var %>']").val("( " + arr.join(' OR ') + " )");
             }
             <% elsif (awesome_vars['style'] == 'text') %>
             {
