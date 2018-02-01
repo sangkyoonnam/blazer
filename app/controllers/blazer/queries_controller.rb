@@ -82,7 +82,25 @@ module Blazer
     end
 
     def export
-      render :json => 'working'
+      cloud = GoogleCloud.new
+      query = params[:statement]
+      query_id = params[:statemet]
+      file = cloud.extract_url(query, query_id)
+
+      csv_read = CSV.read(file.path)
+
+      export_csv = CSV.generate do |csv|
+        csv_read.each do |row|
+          csv << row
+        end
+      end
+
+      respond_to do |format|
+        format.csv do
+          send_data export_csv, type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"export_data.csv\""
+        end
+      end
+
     end
 
     def run
