@@ -16,7 +16,7 @@
         <% if !@error && @success %>
           <%= button_to "Download", run_queries_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-primary" %>
         <% end %>
-        <%= button_to "Export", export_query_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-warning" %>
+        <%= button_to "Export", export_query_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-warning", form: {button_id: 'test-id'}%>
       </div>
     </div>
   </div>
