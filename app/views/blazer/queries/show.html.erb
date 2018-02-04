@@ -16,8 +16,9 @@
         <% if !@error && @success %>
           <%= button_to "Download", run_queries_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-primary" %>
         <% end %>
-        <%= button_to "Export", export_query_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-warning", form: {id:"export_btn"}%>
-        <button onclick="click_change(event);">익스</button>
+        <button onclick="click_change(event);" class= "btn btn-warning">export</button>
+        <button onclick="click_count(event);" class= "btn btn-warning">개수 확인하기</button>
+
       </div>
     </div>
   </div>

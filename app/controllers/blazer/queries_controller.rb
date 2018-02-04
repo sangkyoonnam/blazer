@@ -1,6 +1,6 @@
 module Blazer
   class QueriesController < BaseController
-    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export]
+    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export, :count]
 
     def home
       if params[:filter] == "dashboards"
@@ -80,16 +80,21 @@ module Blazer
     def edit
     end
 
-    def sql
-      @statement = params[:statement]
+    def count
+      cloud = GoogleCloud.new
+      @statement = query_to_count(@query.statement.dup )
+
       data_source = params[:data_source]
       process_vars(@statement, data_source)
-      render json: {sql: @statement}, status: :accepted
+      count = cloud.query( @statement )
+      render json: {sql: count}
     end
 
     def export
+
       cloud = GoogleCloud.new
       query_id = params[:query_id]
+
       @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
       process_vars(@statement, @query.data_source)
 

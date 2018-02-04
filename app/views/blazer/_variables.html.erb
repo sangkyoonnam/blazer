@@ -185,6 +185,13 @@
         change_action(e);
     }
 
+    function click_count(e){
+        var before_action = $("#bind_").attr("action");
+        $("#bind_").attr("action",'<%= count_query_path(query_id: @query.id, format: "csv") %>>');
+        submit_filter(event)
+        $("#bind_").attr("action",before_action);
+    }
+
 
 
   </script>

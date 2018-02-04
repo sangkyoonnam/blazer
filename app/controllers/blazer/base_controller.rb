@@ -25,13 +25,13 @@ module Blazer
     private
 
       def process_vars(statement, data_source)
-        (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq!
+        (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq! # 동적변수
         awesome_variables = {}
         @bind_vars.each do |var|
-          params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]
+          params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]  # 현재 우리쪽에서는 쓰지않음
           awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
         end
-        @success = @bind_vars.all? { |v| params[v] }
+        @success = @bind_vars.all? { |v| params[v] } # parameter 로 각 동적변수들이 넘어왔는지 체크 . 이게 되었다면 매핑준비는 완료
 
         if @success
           @bind_vars.each do |var|
@@ -133,5 +133,13 @@ module Blazer
       def default_url_options
         {}
       end
+
+      def query_to_count query
+        select = 'SELECT'
+        from = 'FROM'
+
+        query.sub /#{select}(.*?)#{from}/m , 'SELECT COUNT(*) FROM'
+      end
+
   end
 end
