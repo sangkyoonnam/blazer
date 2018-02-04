@@ -81,24 +81,21 @@ module Blazer
     end
 
     def count
-      cloud = GoogleCloud.new
       @statement = query_to_count(@query.statement.dup )
 
       data_source = params[:data_source]
       process_vars(@statement, data_source)
-      count = cloud.query( @statement )
+      count = @gcp.query( @statement )
       render json: {sql: count}
     end
 
     def export
-
-      cloud = GoogleCloud.new
       query_id = params[:query_id]
 
       @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
       process_vars(@statement, @query.data_source)
 
-      file = cloud.extract_url(@statement, query_id)
+      file = @gcp.extract_url(@statement, query_id)
       csv_read = CSV.read(file.path)
 
       export_csv = CSV.generate do |csv|

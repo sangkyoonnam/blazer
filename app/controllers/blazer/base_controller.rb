@@ -1,6 +1,7 @@
 module Blazer
   class BaseController < ApplicationController
     # skip filters
+
     filters = _process_action_callbacks.map(&:filter) - [:activate_authlogic]
     if Rails::VERSION::MAJOR >= 5
       skip_before_action(*filters, raise: false)
@@ -11,6 +12,7 @@ module Blazer
     end
 
     protect_from_forgery with: :exception
+    before_action :load_service
 
     if ENV["BLAZER_PASSWORD"]
       http_basic_authenticate_with name: ENV["BLAZER_USERNAME"], password: ENV["BLAZER_PASSWORD"]
@@ -139,6 +141,10 @@ module Blazer
         from = 'FROM'
 
         query.sub /#{select}(.*?)#{from}/m , 'SELECT COUNT(*) FROM'
+      end
+
+      def load_service(service = GoogleCloudService.new)
+        @gcp ||= service
       end
 
   end
