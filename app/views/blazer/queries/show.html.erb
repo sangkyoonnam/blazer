@@ -16,7 +16,8 @@
         <% if !@error && @success %>
           <%= button_to "Download", run_queries_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-primary" %>
         <% end %>
-        <%= button_to "Export", export_query_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-warning", form: {button_id: 'test-id'}%>
+        <%= button_to "Export", export_query_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-warning", form: {id:"export_btn"}%>
+        <button onclick="click_change(event);">익스</button>
       </div>
     </div>
   </div>
@@ -43,6 +44,7 @@
 <pre id="code"><code><%= @statement %></code></pre>
 
 <% if @success %>
+
   <div id="results">
     <p class="text-muted">Loading...</p>
   </div>
@@ -56,7 +58,6 @@
     function showError(message) {
       $("#results").addClass("query-error").html(message)
     }
-
     <%= blazer_js_var "data", variable_params.merge(statement: @statement, query_id: @query.id) %>
 
     runQuery(data, showRun, showError)

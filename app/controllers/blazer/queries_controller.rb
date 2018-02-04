@@ -1,6 +1,6 @@
 module Blazer
   class QueriesController < BaseController
-    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh]
+    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export]
 
     def home
       if params[:filter] == "dashboards"
@@ -55,9 +55,8 @@ module Blazer
     end
 
     def show
-      @statement = @query.statement.dup
+      @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
       process_vars(@statement, @query.data_source)
-
       @awesome_vars = {}
       @sql_errors = []
       data_source = Blazer.data_sources[@query.data_source]
@@ -75,18 +74,26 @@ module Blazer
       #   @options[var] = options
       # end
 
-      Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
+        Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement  # 흠 현재는 사용하지 않고있군 . 렌더링을 하지않아도 레일즈 내부에서 자동으로 해주는건가?
     end
 
     def edit
     end
 
+    def sql
+      @statement = params[:statement]
+      data_source = params[:data_source]
+      process_vars(@statement, data_source)
+      render json: {sql: @statement}, status: :accepted
+    end
+
     def export
       cloud = GoogleCloud.new
-      query = params[:statement]
-      query_id = params[:statemet]
-      file = cloud.extract_url(query, query_id)
+      query_id = params[:query_id]
+      @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
+      process_vars(@statement, @query.data_source)
 
+      file = cloud.extract_url(@statement, query_id)
       csv_read = CSV.read(file.path)
 
       export_csv = CSV.generate do |csv|
@@ -112,7 +119,6 @@ module Blazer
       @query = Query.find_by(id: params[:query_id]) if params[:query_id]
       data_source = @query.data_source if @query && @query.data_source
       @data_source = Blazer.data_sources[data_source]
-
       if @run_id
         @timestamp = blazer_params[:timestamp].to_i
 
@@ -138,13 +144,14 @@ module Blazer
         else
           continue_run
         end
-      elsif @success
+      elsif @success #process vars에서 생성된 변수
         @run_id = blazer_run_id
 
         options = {user: blazer_user, query: @query, refresh_cache: params[:check], run_id: @run_id, async: Blazer.async}
-        if Blazer.async && request.format.symbol != :csv
+        if Blazer.async && request.format.symbol != :csv  #여기 구문은 실행되지 않는다
+
           result = []
-          Blazer::RunStatementJob.perform_async(result, @data_source, @statement, options)
+          Blazer::RunStatementJob.perform_async(result, @data_source, @statement, options)  #perform_async 는 worker 가 가지는 함수다
           wait_start = Time.now
           loop do
             sleep(0.02)

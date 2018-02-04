@@ -147,9 +147,10 @@
     <hr>
   </form>
   <script>
-    var submit_filter = function(event) {
-        event.preventDefault();
 
+    var submit_filter = function(event) {
+        alert(event);
+        event.preventDefault();
         <% @bind_vars.each_with_index do |var, i| %>
         <% if (awesome_vars = @awesome_vars[var]) %>
         <% if (awesome_vars['style'] == 'checkbox') %>
@@ -168,11 +169,23 @@
         <% end %>
         <% end %>
         <% end %>
-        alert('test');
-        $(this).unbind('submit').submit();
+        $('#bind_').unbind('submit').submit();
+    }
+    $('#bind_').submit(submit_filter);
+
+    var change_action = function (event) {
+        var before_action = $("#bind_").attr("action");
+        $("#bind_").attr("action",'<%= export_query_path(query_id: @query.id, format: "csv") %>>');
+        submit_filter(event)
+        $("#bind_").attr("action",before_action);
+
     }
 
-    $('#bind_').submit(submit_filter);
-    $('#bind_').submit(submit_filter);
+    function click_change(e){
+        change_action(e);
+    }
+
+
+
   </script>
 <% end %>
