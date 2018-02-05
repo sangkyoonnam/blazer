@@ -1,6 +1,6 @@
 module Blazer
   class QueriesController < BaseController
-    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export, :count]
+    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export, :count, :sql_check]
     before_action :authenticate_user!, only: [:show, :edit, :update, :destroy, :refresh, :export, :count]
 
     def home
@@ -112,6 +112,12 @@ module Blazer
         end
       end
 
+    end
+
+    def sql_check
+      @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
+      process_vars(@statement, @query.data_source)
+      render json: {result: @success, statement: @statement, query_id: params[:query_id]}
     end
 
     def run

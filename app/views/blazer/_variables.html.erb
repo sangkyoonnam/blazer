@@ -143,7 +143,7 @@
       </script>
     <% end %>
 
-    <input type="submit" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" />
+    <input type="button" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" onclick="query_check();"/>
     <hr>
   </form>
   <script>
@@ -169,7 +169,6 @@
         <% end %>
         <% end %>
     }
-    $('#bind_').submit(submit_filter);
 
     var change_action = function (event) {
         var before_action = $("#bind_").attr("action");
@@ -186,7 +185,7 @@
     function click_count(e){
         $("#sql_count").text("계산중입니다...") ;
         $.ajax({
-            url: '<%= count_query_path(query_id: @query.id, format: "csv") %>',
+            url: '<%= count_query_path(query_id: @query.id) %>',
             method: "GET",
             data: $("#bind_").serializeObject(),
             dataType: "html"
@@ -194,9 +193,62 @@
             if (d[0] == "{") {
                 var response = $.parseJSON(d);
                 var count = response['sql'][0]['f0_'];
-                $("#sql_count").text("총 모수 :" +count) ;
+                $("#sql_count").text("총 모수 :" +count);
             }
         });
+    }
+
+    function tags_transform(){
+        <% @bind_vars.each_with_index do |var, i| %>
+        <% if (awesome_vars = @awesome_vars[var]) %>
+        <% if (awesome_vars['style'] == 'checkbox') %>
+        {
+            var arr=[];
+            $("input:checked[name='<%= var %>[]']").each(function () {
+                arr.push($(this).val());
+            });
+            $("input[name='<%= var %>']").val("( " + arr.join(' OR ') + " )");
+        }
+        <% elsif (awesome_vars['style'] == 'text') %>
+        {
+            var val = $("input[name='<%= var %>']").val();
+            $("input[name='<%= var %>']").val("<%= var %>=" + val);
+        }
+        <% end %>
+        <% end %>
+        <% end %>
+    }
+    test= ''
+    function query_check(e){
+        tags_transform();
+        $.ajax({
+            url: '<%= sql_check_query_path(query_id: @query.id) %>',
+            method: "GET",
+            data: $("#bind_").serializeObject(),
+            dataType: "html"
+        }).done( function (d) {
+            if (d[0] == "{") {
+                var response = $.parseJSON(d);
+                var result = response['result'];
+                var data = {'statement':response['statement'],'query_id':response['query_id']}
+                if (result){
+                    $("#results").html('<p class="text-muted">Loading...</p>')
+                    runQuery(data, showRun, showError);
+                }else{
+                    alert('변환에 실패하였습니다. 조건을 다시 설정해주세요');
+                }
+
+            }
+        });
+    }
+
+    function showRun(data) {
+        $("#results").html(data)
+        $("#results table").stupidtable().stickyTableHeaders({fixedOffset: 60})
+    }
+
+    function showError(message) {
+        $("#results").addClass("query-error").html(message)
     }
 
   </script>
