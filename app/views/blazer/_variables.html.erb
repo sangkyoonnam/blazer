@@ -23,7 +23,7 @@
     margin-left: 12px;
   }
 </style>
-<% if @bind_vars.any? %>
+<% if @bind_vars.any? && @awesome_vars.present? %>
   <form id="bind_" method="get" action="<%= action %>" class="form-inline" style="margin-bottom: 10px;">
     <% date_vars = ["start_time", "end_time"] %>
     <% if (date_vars - @bind_vars).empty? %>
@@ -149,7 +149,6 @@
   <script>
 
     var submit_filter = function(event) {
-        alert(event);
         event.preventDefault();
         <% @bind_vars.each_with_index do |var, i| %>
         <% if (awesome_vars = @awesome_vars[var]) %>
@@ -169,7 +168,6 @@
         <% end %>
         <% end %>
         <% end %>
-        $('#bind_').unbind('submit').submit();
     }
     $('#bind_').submit(submit_filter);
 
@@ -186,13 +184,20 @@
     }
 
     function click_count(e){
-        var before_action = $("#bind_").attr("action");
-        $("#bind_").attr("action",'<%= count_query_path(query_id: @query.id, format: "csv") %>>');
-        submit_filter(event)
-        $("#bind_").attr("action",before_action);
+        $("#sql_count").text("계산중입니다...") ;
+        $.ajax({
+            url: '<%= count_query_path(query_id: @query.id, format: "csv") %>',
+            method: "GET",
+            data: $("#bind_").serializeObject(),
+            dataType: "html"
+        }).done( function (d) {
+            if (d[0] == "{") {
+                var response = $.parseJSON(d);
+                var count = response['sql'][0]['f0_'];
+                $("#sql_count").text("총 모수 :" +count) ;
+            }
+        });
     }
-
-
 
   </script>
 <% end %>

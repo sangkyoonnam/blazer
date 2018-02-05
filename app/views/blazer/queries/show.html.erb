@@ -3,13 +3,19 @@
 <div class="topbar">
   <div class="container">
     <div class="row" style="padding-top: 13px;">
-      <div class="col-sm-6">
+      <div class="col-sm-4">
         <%= render partial: "blazer/nav" %>
         <h3 style="margin: 0; line-height: 34px; display: inline;">
           <%= @query.name %>
         </h3>
       </div>
+      <div class="col-sm-2 text-right">
+        <h5 style="margin: 0; line-height: 34px; display: inline;" id="sql_count">
+        </h5>
+      </div>
       <div class="col-sm-6 text-right">
+
+
         <%= link_to "Edit", edit_query_path(@query, variable_params), class: "btn btn-default", disabled: !@query.editable?(blazer_user) %>
         <%= link_to "Fork", new_query_path(variable_params.merge(fork_query_id: @query.id, data_source: @query.data_source, name: @query.name)), class: "btn btn-info" %>
 
@@ -68,8 +74,8 @@
   <script>
     // do not highlight really long queries
     // this can lead to performance issues
-    if ($("code").text().length < 10000) {
-      hljs.highlightBlock(document.getElementById("code"));
-    }
+//    if ($("code").text().length < 10000) {
+//      hljs.highlightBlock(document.getElementById("code"));
+//    }
   </script>
 <% end %>

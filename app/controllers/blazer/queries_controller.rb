@@ -1,6 +1,7 @@
 module Blazer
   class QueriesController < BaseController
     before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export, :count]
+    before_action :authenticate_user!, only: [:show, :edit, :update, :destroy, :refresh, :export, :count]
 
     def home
       if params[:filter] == "dashboards"
@@ -96,6 +97,7 @@ module Blazer
       process_vars(@statement, @query.data_source)
 
       file = @gcp.extract_url(@statement, query_id)
+      file_name = file.path.gsub('./','')
       csv_read = CSV.read(file.path)
 
       export_csv = CSV.generate do |csv|
@@ -106,7 +108,7 @@ module Blazer
 
       respond_to do |format|
         format.csv do
-          send_data export_csv, type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"export_data.csv\""
+          send_data export_csv, type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"#{file_name}"""
         end
       end
 
