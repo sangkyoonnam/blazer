@@ -14,17 +14,13 @@
         </h5>
       </div>
       <div class="col-sm-6 text-right">
-
-
         <%= link_to "Edit", edit_query_path(@query, variable_params), class: "btn btn-default", disabled: !@query.editable?(blazer_user) %>
         <%= link_to "Fork", new_query_path(variable_params.merge(fork_query_id: @query.id, data_source: @query.data_source, name: @query.name)), class: "btn btn-info" %>
 
         <% if !@error && @success %>
           <%= button_to "Download", run_queries_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-primary" %>
         <% end %>
-        <button onclick="click_change(event);" class= "btn btn-warning">export</button>
-        <button onclick="click_count(event);" class= "btn btn-warning">개수 확인하기</button>
-
+        <button onclick="export_to(event);" class= "btn btn-warning">Export</button>
       </div>
     </div>
   </div>
@@ -53,11 +49,6 @@
 </div>
 
 <% unless %w(mongodb elasticsearch).include?(Blazer.data_sources[@query.data_source].adapter) %>
-  <script>
-    // do not highlight really long queries
-    // this can lead to performance issues
-//    if ($("code").text().length < 10000) {
-//      hljs.highlightBlock(document.getElementById("code"));
-//    }
-  </script>
+    <script>
+    </script>
 <% end %>

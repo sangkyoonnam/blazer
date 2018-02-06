@@ -61,7 +61,9 @@ module Blazer
 
             variable = awesome_variables[var]
             if variable.present? && variable['type'] == 'condition'
-              if value.present?
+              if value.present? && variable['style'] == 'checkbox'
+                statement.gsub!("{#{var}}"," #{value.join(' or ')} ")
+              elsif value.present?
                 statement.gsub!("{#{var}}", value)
               else
                 statement.gsub!("{#{var}}", 'true')
@@ -136,16 +138,9 @@ module Blazer
         {}
       end
 
-      def query_to_count query
-        select = 'SELECT'
-        from = 'FROM'
-
-        query.sub /#{select}(.*?)#{from}/m , 'SELECT COUNT(*) FROM'
+      # TODO  나중에는 바라보는 data_source에 따라 클라우드 서비스를 생성하도록 한다.
+      def load_service(service = CloudService.new('google'))
+        @cloud ||= service.cloud
       end
-
-      def load_service(service = GoogleCloudService.new)
-        @gcp ||= service
-      end
-
   end
 end

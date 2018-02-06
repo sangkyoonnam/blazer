@@ -1,7 +1,7 @@
 module Blazer
   class QueriesController < BaseController
-    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export, :count, :sql_check]
-    before_action :authenticate_user!, only: [:show, :edit, :update, :destroy, :refresh, :export, :count]
+    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export]
+    before_action :authenticate_user!, only: [:show, :edit, :update, :destroy, :refresh, :export]
 
     def home
       if params[:filter] == "dashboards"
@@ -56,7 +56,7 @@ module Blazer
     end
 
     def show
-      @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
+      @statement = @query.statement.dup
       process_vars(@statement, @query.data_source)
       @awesome_vars = {}
       @sql_errors = []
@@ -75,28 +75,17 @@ module Blazer
       #   @options[var] = options
       # end
 
-        Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement  # 흠 현재는 사용하지 않고있군 . 렌더링을 하지않아도 레일즈 내부에서 자동으로 해주는건가?
+        Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
     end
 
     def edit
     end
 
-    def count
-      @statement = query_to_count(@query.statement.dup )
-
-      data_source = params[:data_source]
-      process_vars(@statement, data_source)
-      count = @gcp.query( @statement )
-      render json: {sql: count}
-    end
-
     def export
-      query_id = params[:query_id]
-
       @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
       process_vars(@statement, @query.data_source)
 
-      file = @gcp.extract_url(@statement, query_id)
+      file = @cloud.extract_url(@statement, @query.id)
       file_name = file.path.gsub('./','')
       csv_read = CSV.read(file.path)
 
@@ -111,22 +100,16 @@ module Blazer
           send_data export_csv, type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"#{file_name}"""
         end
       end
-
-    end
-
-    def sql_check
-      @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
-      process_vars(@statement, @query.data_source)
-      render json: {result: @success, statement: @statement, query_id: params[:query_id]}
     end
 
     def run
-      @statement = params[:statement]
+      @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
+      @statement = @query.statement.dup
       data_source = params[:data_source]
       process_vars(@statement, data_source)
       @only_chart = params[:only_chart]
       @run_id = blazer_params[:run_id]
-      @query = Query.find_by(id: params[:query_id]) if params[:query_id]
+
       data_source = @query.data_source if @query && @query.data_source
       @data_source = Blazer.data_sources[data_source]
       if @run_id
@@ -144,7 +127,7 @@ module Blazer
           @cached_at = nil
           params[:data_source] = nil
           render_run
-        elsif Time.now > Time.at(@timestamp + (@data_source.timeout || 600).to_i + 5)
+        elsif Time.now > Time.at(@timestamp + (@data_source.timeout || 600).to_i + 300)
           # query lost
           Rails.logger.info "[blazer lost query] #{@run_id}"
           @error = "We lost your query :("
@@ -368,5 +351,6 @@ module Blazer
       def blazer_run_id
         params[:run_id].to_s.gsub(/[^a-z0-9\-]/i, "")
       end
+
   end
 end
