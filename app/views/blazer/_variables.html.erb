@@ -23,8 +23,8 @@
     margin-left: 12px;
   }
 </style>
-<% if @bind_vars.any? && @awesome_vars.present? %>
-  <form id="bind_" method="get" action="<%= action %>" class="form-inline" style="margin-bottom: 10px;">
+<% if @bind_vars.any? %>
+  <form id="bind_" method="get" action="<%= export_query_path(query_id: @query.id, format: "csv") %>" class="form-inline" style="margin-bottom: 10px;">
     <% date_vars = ["start_time", "end_time"] %>
     <% if (date_vars - @bind_vars).empty? %>
       <% @bind_vars = @bind_vars - date_vars %>
@@ -47,7 +47,6 @@
                   <label class="custom-control-label" for="<%= datum[0] %>"><%= datum[0] %></label>
                 </div>
               <% end %>
-              <input type='hidden' name='<%= var %>' />
             <% elsif awesome_vars['style'] == 'radio' %>
                 radio
             <% elsif %w(text value).include? awesome_vars['style'] %>
@@ -143,82 +142,20 @@
       </script>
     <% end %>
 
-    <input type="button" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" onclick="query_check();"/>
+    <input type="button" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" onclick="run();"/>
     <hr>
   </form>
   <script>
 
-    var change_action = function (event) {
-        var before_action = $("#bind_").attr("action");
-        $("#bind_").attr("action",'<%= export_query_path(query_id: @query.id, format: "csv") %>');
-        tags_transform();
+    var export_to = function (event) {
         $("#bind_").submit();
-        $("#bind_").attr("action",before_action);
     }
 
-    function click_change(e){
-        change_action(e);
-    }
-
-    function click_count(e){
-        tags_transform();
-        $("#sql_count").text("계산중입니다...") ;
-        $.ajax({
-            url: '<%= count_query_path(query_id: @query.id) %>',
-            method: "GET",
-            data: $("#bind_").serializeObject(),
-            dataType: "html"
-        }).done( function (d) {
-            if (d[0] == "{") {
-                var response = $.parseJSON(d);
-                var count = response['sql'][0]['f0_'];
-                $("#sql_count").text("총 모수 :" +count);
-            }
-        });
-    }
-
-    function tags_transform(){
-        <% @bind_vars.each_with_index do |var, i| %>
-        <% if (awesome_vars = @awesome_vars[var]) %>
-        <% if (awesome_vars['style'] == 'checkbox') %>
-        {
-            var arr=[];
-            $("input:checked[name='<%= var %>[]']").each(function () {
-                arr.push($(this).val());
-            });
-            $("input[name='<%= var %>']").val("( " + arr.join(' OR ') + " )");
-        }
-        <% elsif (awesome_vars['style'] == 'text') %>
-        {
-            var val = $("input[name='<%= var %>']").val();
-            $("input[name='<%= var %>']").val("<%= var %>=" + val);
-        }
-        <% end %>
-        <% end %>
-        <% end %>
-    }
-    test= ''
-    function query_check(e){
-        tags_transform();
-        $.ajax({
-            url: '<%= sql_check_query_path(query_id: @query.id) %>',
-            method: "GET",
-            data: $("#bind_").serializeObject(),
-            dataType: "html"
-        }).done( function (d) {
-            if (d[0] == "{") {
-                var response = $.parseJSON(d);
-                var result = response['result'];
-                var data = {'statement':response['statement'],'query_id':response['query_id']}
-                if (result){
-                    $("#results").html('<p class="text-muted">Loading...</p>')
-                    runQuery(data, showRun, showError);
-                }else{
-                    alert('변환에 실패하였습니다. 조건을 다시 설정해주세요');
-                }
-
-            }
-        });
+    function run(e){
+        data= $("#bind_").serializeObject();
+        data['query_id'] = <%=@query.id%>
+        $("#results").html('<p class="text-muted">Loading...</p>');
+        runQuery(data, showRun, showError);
     }
 
     function showRun(data) {
