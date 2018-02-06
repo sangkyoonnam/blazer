@@ -148,34 +148,12 @@
   </form>
   <script>
 
-    var submit_filter = function(event) {
-        event.preventDefault();
-        <% @bind_vars.each_with_index do |var, i| %>
-        <% if (awesome_vars = @awesome_vars[var]) %>
-        <% if (awesome_vars['style'] == 'checkbox') %>
-        {
-            var arr=[];
-            $("input:checked[name='<%= var %>[]']").each(function () {
-                arr.push($(this).val());
-            });
-            $("input[name='<%= var %>']").val("( " + arr.join(' OR ') + " )");
-        }
-        <% elsif (awesome_vars['style'] == 'text') %>
-        {
-            var val = $("input[name='<%= var %>']").val();
-            $("input[name='<%= var %>']").val("<%= var %>=" + val);
-        }
-        <% end %>
-        <% end %>
-        <% end %>
-    }
-
     var change_action = function (event) {
         var before_action = $("#bind_").attr("action");
-        $("#bind_").attr("action",'<%= export_query_path(query_id: @query.id, format: "csv") %>>');
-        submit_filter(event)
+        $("#bind_").attr("action",'<%= export_query_path(query_id: @query.id, format: "csv") %>');
+        tags_transform();
+        $("#bind_").submit();
         $("#bind_").attr("action",before_action);
-
     }
 
     function click_change(e){
@@ -183,6 +161,7 @@
     }
 
     function click_count(e){
+        tags_transform();
         $("#sql_count").text("계산중입니다...") ;
         $.ajax({
             url: '<%= count_query_path(query_id: @query.id) %>',
