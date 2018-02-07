@@ -4,7 +4,9 @@
     <span class="caret"></span>
     <span class="sr-only">Toggle Dropdown</span>
   </button>
+  <a data-confirm="Are you sure?" class="btn btn-warning" rel="nofollow" data-method="delete" href="/users/sign_out" style="margin-left: 20px;" >로그아웃</a>
   <ul class="dropdown-menu">
+    <li><%= link_to('로그아웃', destroy_user_session_path, :method => :delete) %></li>
     <li><%= link_to "Dashboards", dashboards_path %></li>
     <li><%= link_to "Checks", checks_path %></li>
     <li role="separator" class="divider"></li>
