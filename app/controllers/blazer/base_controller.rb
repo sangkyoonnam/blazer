@@ -1,6 +1,7 @@
 module Blazer
   class BaseController < ApplicationController
     # skip filters
+
     filters = _process_action_callbacks.map(&:filter) - [:activate_authlogic]
     if Rails::VERSION::MAJOR >= 5
       skip_before_action(*filters, raise: false)
@@ -11,6 +12,7 @@ module Blazer
     end
 
     protect_from_forgery with: :exception
+    before_action :load_service
 
     if ENV["BLAZER_PASSWORD"]
       http_basic_authenticate_with name: ENV["BLAZER_USERNAME"], password: ENV["BLAZER_PASSWORD"]
@@ -25,13 +27,13 @@ module Blazer
     private
 
       def process_vars(statement, data_source)
-        (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq!
+        (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq! # 동적변수
         awesome_variables = {}
         @bind_vars.each do |var|
-          params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]
+          params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]  # 현재 우리쪽에서는 쓰지않음
           awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
         end
-        @success = @bind_vars.all? { |v| params[v] }
+        @success = @bind_vars.all? { |v| params[v] } # parameter 로 각 동적변수들이 넘어왔는지 체크 . 이게 되었다면 매핑준비는 완료
 
         if @success
           @bind_vars.each do |var|
@@ -59,7 +61,9 @@ module Blazer
 
             variable = awesome_variables[var]
             if variable.present? && variable['type'] == 'condition'
-              if value.present?
+              if value.present? && variable['style'] == 'checkbox'
+                statement.gsub!("{#{var}}"," #{value.join(' or ')} ")
+              elsif value.present?
                 statement.gsub!("{#{var}}", value)
               else
                 statement.gsub!("{#{var}}", 'true')
@@ -132,6 +136,11 @@ module Blazer
       # do not inherit from ApplicationController - #120
       def default_url_options
         {}
+      end
+
+      # TODO  나중에는 바라보는 data_source에 따라 클라우드 서비스를 생성하도록 한다.
+      def load_service(service = CloudService.new('google'))
+        @cloud ||= service.cloud
       end
   end
 end

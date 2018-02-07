@@ -1,6 +1,7 @@
 module Blazer
   class QueriesController < BaseController
-    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh]
+    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export]
+    before_action :authenticate_user!, only: [:show, :edit, :update, :destroy, :refresh, :export]
 
     def home
       if params[:filter] == "dashboards"
@@ -57,7 +58,6 @@ module Blazer
     def show
       @statement = @query.statement.dup
       process_vars(@statement, @query.data_source)
-
       @awesome_vars = {}
       @sql_errors = []
       data_source = Blazer.data_sources[@query.data_source]
@@ -75,22 +75,43 @@ module Blazer
       #   @options[var] = options
       # end
 
-      Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
+        Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
     end
 
     def edit
     end
 
+    def export
+      @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
+      process_vars(@statement, @query.data_source)
+
+      file = @cloud.extract_url(@statement, @query.id)
+      file_name = file.path.gsub('./','')
+      csv_read = CSV.read(file.path)
+
+      export_csv = CSV.generate do |csv|
+        csv_read.each do |row|
+          csv << row
+        end
+      end
+
+      respond_to do |format|
+        format.csv do
+          send_data export_csv, type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"#{file_name}"""
+        end
+      end
+    end
+
     def run
-      @statement = params[:statement]
+      @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
+      @statement = @query.statement.dup
       data_source = params[:data_source]
       process_vars(@statement, data_source)
       @only_chart = params[:only_chart]
       @run_id = blazer_params[:run_id]
-      @query = Query.find_by(id: params[:query_id]) if params[:query_id]
+
       data_source = @query.data_source if @query && @query.data_source
       @data_source = Blazer.data_sources[data_source]
-
       if @run_id
         @timestamp = blazer_params[:timestamp].to_i
 
@@ -106,7 +127,7 @@ module Blazer
           @cached_at = nil
           params[:data_source] = nil
           render_run
-        elsif Time.now > Time.at(@timestamp + (@data_source.timeout || 600).to_i + 5)
+        elsif Time.now > Time.at(@timestamp + (@data_source.timeout || 600).to_i + 300)
           # query lost
           Rails.logger.info "[blazer lost query] #{@run_id}"
           @error = "We lost your query :("
@@ -116,13 +137,14 @@ module Blazer
         else
           continue_run
         end
-      elsif @success
+      elsif @success #process vars에서 생성된 변수
         @run_id = blazer_run_id
 
         options = {user: blazer_user, query: @query, refresh_cache: params[:check], run_id: @run_id, async: Blazer.async}
-        if Blazer.async && request.format.symbol != :csv
+        if Blazer.async && request.format.symbol != :csv  #여기 구문은 실행되지 않는다
+
           result = []
-          Blazer::RunStatementJob.perform_async(result, @data_source, @statement, options)
+          Blazer::RunStatementJob.perform_async(result, @data_source, @statement, options)  #perform_async 는 worker 가 가지는 함수다
           wait_start = Time.now
           loop do
             sleep(0.02)
@@ -329,5 +351,6 @@ module Blazer
       def blazer_run_id
         params[:run_id].to_s.gsub(/[^a-z0-9\-]/i, "")
       end
+
   end
 end

@@ -1,6 +1,7 @@
 //= require ./jquery
 //= require ./jquery_ujs
 //= require ./stupidtable
+//= require ./jquery.serializeObject
 //= require ./jquery.stickytableheaders
 //= require ./selectize
 //= require ./highlight.pack
@@ -16,7 +17,6 @@
 //= require ./routes
 //= require ./queries
 //= require ./fuzzysearch
-
 Vue.config.devtools = false
 
 $(document).on('mouseenter', '.dropdown-toggle', function () {
