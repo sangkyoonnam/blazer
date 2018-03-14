@@ -27,8 +27,9 @@ module Blazer
     private
 
       def process_vars(statement, data_source)
-        (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq! # 동적변수
+        (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq!
         awesome_variables = {}
+        @bind_vars = @bind_vars.reject{|var| var.end_with? '_table'} # 동적변수
         @bind_vars.each do |var|
           params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]  # 현재 우리쪽에서는 쓰지않음
           awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
@@ -71,6 +72,25 @@ module Blazer
             else
               statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
             end
+          end
+        end
+      end
+
+      def process_tables(statement, data_source)
+        (@bind_tables ||= []).concat(Blazer.extract_vars(statement))
+        awesome_variables = {}
+        @bind_tables = @bind_tables.select{|r| r.end_with? '_table'}
+        return unless @bind_tables.present?
+        @bind_tables.each do |var|
+          awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
+        end
+        @bind_tables.each do |var|
+          variable = awesome_variables[var]
+          if variable.present? && variable['type'] == 'table'
+            prefix_table = variable['value']['name']
+            suffix = eval(variable['value']['suffix'])
+            value =prefix_table + suffix
+            statement.gsub!("{#{var}}", value )
           end
         end
       end

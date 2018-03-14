@@ -57,7 +57,10 @@ module Blazer
 
     def show
       @statement = @query.statement.dup
-      process_vars(@statement, @query.data_source)
+
+      process_vars(@statement, data_source)
+      process_tables(@statement, data_source)
+
       @awesome_vars = {}
       @sql_errors = []
       data_source = Blazer.data_sources[@query.data_source]
@@ -83,7 +86,9 @@ module Blazer
 
     def export
       @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
-      process_vars(@statement, @query.data_source)
+
+      process_vars(@statement, data_source)
+      process_tables(@statement, data_source)
 
       file = @cloud.extract_url(@statement, @query.id)
       file_name = file.path.gsub('./','')
@@ -106,7 +111,10 @@ module Blazer
       @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
       @statement = @query.statement.dup
       data_source = params[:data_source]
+
       process_vars(@statement, data_source)
+      process_tables(@statement, data_source)
+
       @only_chart = params[:only_chart]
       @run_id = blazer_params[:run_id]
 

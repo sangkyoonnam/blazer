@@ -31,6 +31,7 @@
     <% else %>
       <% date_vars = nil %>
     <% end %>
+    <% @bind_vars = @bind_vars.reject{|bind_var| bind_var.end_with? '_table'} %>
 
     <% @bind_vars.each_with_index do |var, i| %>
       <div>
