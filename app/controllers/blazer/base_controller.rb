@@ -90,7 +90,7 @@ module Blazer
             prefix_table = variable['value']['name']
             suffix = eval(variable['value']['suffix'])
             value =prefix_table + suffix
-            statement.gsub!("{#{var}}", value )
+            statement.gsub!("{#{var}}", value)
           end
         end
       end
