@@ -1,146 +1,361 @@
 module Blazer
-  class BaseController < ApplicationController
-    # skip filters
+  class QueriesController < BaseController
+    before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export]
+    before_action :authenticate_user!, only: [:show, :edit, :update, :destroy, :refresh, :export]
 
-    filters = _process_action_callbacks.map(&:filter) - [:activate_authlogic]
-    if Rails::VERSION::MAJOR >= 5
-      skip_before_action(*filters, raise: false)
-      skip_after_action(*filters, raise: false)
-      skip_around_action(*filters, raise: false)
-    else
-      skip_action_callback *filters
+    def home
+      if params[:filter] == "dashboards"
+        @queries = []
+      else
+        set_queries(1000)
+      end
+
+      if params[:filter] && params[:filter] != "dashboards"
+        @dashboards = [] # TODO show my dashboards
+      else
+        @dashboards = Blazer::Dashboard.order(:name)
+        @dashboards = @dashboards.includes(:creator) if Blazer.user_class
+      end
+
+      @dashboards =
+          @dashboards.map do |d|
+            {
+                id: d.id,
+                name: d.name,
+                creator: blazer_user && d.try(:creator) == blazer_user ? "You" : d.try(:creator).try(Blazer.user_name),
+                to_param: d.to_param,
+                dashboard: true
+            }
+          end
     end
 
-    protect_from_forgery with: :exception
-    before_action :load_service
-
-    if ENV["BLAZER_PASSWORD"]
-      http_basic_authenticate_with name: ENV["BLAZER_USERNAME"], password: ENV["BLAZER_PASSWORD"]
+    def index
+      set_queries
+      render json: @queries
     end
 
-    if Blazer.before_action
-      before_action Blazer.before_action.to_sym
+    def new
+      @query = Blazer::Query.new(
+          data_source: params[:data_source],
+          name: params[:name]
+      )
+      if params[:fork_query_id]
+        @query.statement ||= Blazer::Query.find(params[:fork_query_id]).try(:statement)
+      end
     end
 
-    layout "blazer/application"
+    def create
+      @query = Blazer::Query.new(query_params)
+      @query.creator = blazer_user if @query.respond_to?(:creator)
+
+      if @query.save
+        redirect_to query_path(@query, variable_params)
+      else
+        render_errors @query
+      end
+    end
+
+    def show
+      @statement = @query.statement.dup
+      process_vars(@statement, @query.data_source)
+      @awesome_vars = {}
+      p @statement
+      process_tables(@statement, @query.data_source)
+      p @statement
+      @sql_errors = []
+      data_source = Blazer.data_sources[@query.data_source]
+      @bind_vars.each do |var|
+        awesome_var, error = parse_awesome_variables(var, data_source)
+        @awesome_vars[var] = awesome_var if awesome_var
+        @sql_errors << error if error
+      end
+
+      # @options = {}
+      # @bind_vars.each do |var|
+      #   awesome_var, error, options = parse_awesome_variables(var, data_source)
+      #   @awesome_var[var] = awesome_var if awesome_var
+      #   @sql_errors << error if error
+      #   @options[var] = options
+      # end
+
+      Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
+    end
+
+    def edit
+    end
+
+    def export
+      @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
+      process_vars(@statement, @query.data_source)
+      process_tables(@statement, @query.data_source)
+      file = @cloud.extract_url(@statement, @query.id)
+      file_name = file.path.gsub('./','')
+      csv_read = CSV.read(file.path)
+
+      export_csv = CSV.generate do |csv|
+        csv_read.each do |row|
+          csv << row
+        end
+      end
+
+      respond_to do |format|
+        format.csv do
+          send_data export_csv, type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"#{file_name}"""
+        end
+      end
+    end
+
+    def run
+
+      @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
+      @statement = @query.statement.dup
+      data_source = params[:data_source]
+      process_vars(@statement, data_source)
+      process_tables(@statement, data_source)
+      @only_chart = params[:only_chart]
+      @run_id = blazer_params[:run_id]
+
+      data_source = @query.data_source if @query && @query.data_source
+      @data_source = Blazer.data_sources[data_source]
+      if @run_id
+        @timestamp = blazer_params[:timestamp].to_i
+
+        @result = @data_source.run_results(@run_id)
+        @success = !@result.nil?
+
+        if @success
+          @data_source.delete_results(@run_id)
+          @columns = @result.columns
+          @rows = @result.rows
+          @error = @result.error
+          @just_cached = !@result.error && @result.cached_at.present?
+          @cached_at = nil
+          params[:data_source] = nil
+          render_run
+        elsif Time.now > Time.at(@timestamp + (@data_source.timeout || 600).to_i + 300)
+          # query lost
+          Rails.logger.info "[blazer lost query] #{@run_id}"
+          @error = "We lost your query :("
+          @rows = []
+          @columns = []
+          render_run
+        else
+          continue_run
+        end
+      elsif @success #process vars에서 생성된 변수
+        @run_id = blazer_run_id
+
+        options = {user: blazer_user, query: @query, refresh_cache: params[:check], run_id: @run_id, async: Blazer.async}
+        if Blazer.async && request.format.symbol != :csv  #여기 구문은 실행되지 않는다
+
+          result = []
+          Blazer::RunStatementJob.perform_async(result, @data_source, @statement, options)  #perform_async 는 worker 가 가지는 함수다
+          wait_start = Time.now
+          loop do
+            sleep(0.02)
+            break if result.any? || Time.now - wait_start > 3
+          end
+          @result = result.first
+        else
+          @result = Blazer::RunStatement.new.perform(@data_source, @statement, options)
+        end
+
+        if @result
+          @data_source.delete_results(@run_id) if @run_id
+
+          @columns = @result.columns
+          @rows = @result.rows
+          @error = @result.error
+          @cached_at = @result.cached_at
+          @just_cached = @result.just_cached
+
+          render_run
+        else
+          @timestamp = Time.now.to_i
+          continue_run
+        end
+      else
+        render layout: false
+      end
+    end
+
+    def refresh
+      data_source = Blazer.data_sources[@query.data_source]
+      @statement = @query.statement.dup
+      process_vars(@statement, @query.data_source)
+      Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
+      data_source.clear_cache(@statement)
+      redirect_to query_path(@query, variable_params)
+    end
+
+    def update
+      if params[:commit] == "Fork"
+        @query = Blazer::Query.new
+        @query.creator = blazer_user if @query.respond_to?(:creator)
+      end
+      unless @query.editable?(blazer_user)
+        @query.errors.add(:base, "Sorry, permission denied")
+      end
+      if @query.errors.empty? && @query.update(query_params)
+        redirect_to query_path(@query, variable_params)
+      else
+        render_errors @query
+      end
+    end
+
+    def destroy
+      @query.destroy if @query.editable?(blazer_user)
+      redirect_to root_url
+    end
+
+    def tables
+      render json: Blazer.data_sources[params[:data_source]].tables
+    end
+
+    def schema
+      @schema = Blazer.data_sources[params[:data_source]].schema
+    end
+
+    def cancel
+      Blazer.data_sources[params[:data_source]].cancel(blazer_run_id)
+      head :ok
+    end
 
     private
 
-      def process_vars(statement, data_source)
-        (@bind_vars ||= []).concat(Blazer.extract_vars(statement)).uniq! # 동적변수
-        awesome_variables = {}
-        @bind_vars.each do |var|
-          params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]  # 현재 우리쪽에서는 쓰지않음
-          awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
-        end
-        @success = @bind_vars.all? { |v| params[v] } # parameter 로 각 동적변수들이 넘어왔는지 체크 . 이게 되었다면 매핑준비는 완료
+    def continue_run
+      render json: {run_id: @run_id, timestamp: @timestamp}, status: :accepted
+    end
 
-        if @success
-          @bind_vars.each do |var|
-            value = params[var].presence
-            if value
-              if ["start_time", "end_time"].include?(var)
-                value = value.to_s.gsub(" ", "+") # fix for Quip bug
-              end
+    def render_run
+      @checks = @query ? @query.checks.order(:id) : []
 
-              if var.end_with?("_at")
-                begin
-                  value = Blazer.time_zone.parse(value)
-                rescue
-                  # do nothing
-                end
-              end
-
-              if value =~ /\A\d+\z/
-                value = value.to_i
-              elsif value =~ /\A\d+\.\d+\z/
-                value = value.to_f
-              end
-
-            end
-
-            variable = awesome_variables[var]
-            if variable.present? && variable['type'] == 'condition'
-              if value.present? && variable['style'] == 'checkbox'
-                statement.gsub!("{#{var}}"," #{value.join(' or ')} ")
-              elsif value.present?
-                statement.gsub!("{#{var}}", value)
-              else
-                statement.gsub!("{#{var}}", 'true')
-              end
+      @first_row = @rows.first || []
+      @column_types = []
+      if @rows.any?
+        @columns.each_with_index do |column, i|
+          @column_types << (
+          case @first_row[i]
+            when Integer
+              "int"
+            when Float, BigDecimal
+              "float"
             else
-              statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
-            end
+              "string-ins"
           end
+          )
         end
       end
 
-      def parse_smart_variables(var, data_source)
-        smart_var_data_source =
-          ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.smart_variables[var] }
+      @filename = @query.name.parameterize if @query
+      @min_width_types = @columns.each_with_index.select { |c, i| @first_row[i].is_a?(Time) || @first_row[i].is_a?(String) || @data_source.smart_columns[c] }.map(&:last)
 
-        if smart_var_data_source
-          query = smart_var_data_source.smart_variables[var]
+      @boom = @result.boom if @result
 
-          if query.is_a? Hash
-            smart_var = query.map { |k,v| [v, k] }
-          elsif query.is_a? Array
-            smart_var = query.map { |v| [v, v] }
-          elsif query
-            result = smart_var_data_source.run_statement(query)
-            smart_var = result.rows.map { |v| v.reverse }
-            error = result.error if result.error
-          end
+      @linked_columns = @data_source.linked_columns
+
+      @markers = []
+      [["latitude", "longitude"], ["lat", "lon"], ["lat", "lng"]].each do |keys|
+        lat_index = @columns.index(keys.first)
+        lon_index = @columns.index(keys.last)
+        if lat_index && lon_index
+          @markers =
+              @rows.select do |r|
+                r[lat_index] && r[lon_index]
+              end.map do |r|
+                {
+                    title: r.each_with_index.map{ |v, i| i == lat_index || i == lon_index ? nil : "<strong>#{@columns[i]}:</strong> #{v}" }.compact.join("<br />").truncate(140),
+                    latitude: r[lat_index],
+                    longitude: r[lon_index]
+                }
+              end
         end
-
-        [smart_var, error]
       end
 
-      def parse_awesome_variables(var, data_source)
-        # awesome_var_data_source =
-        #     ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.smart_variables[var] }
-        awesome_var_data_source =
-            ([data_source] + Array(data_source.settings["inherit_smart_settings"]).map { |ds| Blazer.data_sources[ds] }).find { |ds| ds.awesome_variables[var] }  # 이 부분도 추후 수정
-
-        if awesome_var_data_source
-          query = awesome_var_data_source.awesome_variables[var]
-
-          if query.is_a? Hash
-            awesome_var = query
-          elsif query
-            result = awesome_var_data_source.run_statement(query)
-            awesome_var = result.rows.map { |v| v.reverse }
-            error = result.error if result.error
-          end
+      respond_to do |format|
+        format.html do
+          render layout: false
         end
-
-        [awesome_var, error]
+        format.csv do
+          send_data csv_data(@columns, @rows, @data_source), type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"#{@query.try(:name).try(:parameterize).presence || 'query'}.csv\""
+        end
       end
+    end
 
-      def variable_params
-        params.except(:controller, :action, :id, :host, :query, :dashboard, :query_id, :query_ids, :table_names, :authenticity_token, :utf8, :_method, :commit, :statement, :data_source, :name, :fork_query_id, :blazer, :run_id).permit!
-      end
-      helper_method :variable_params
+    def set_queries(limit = nil)
+      @my_queries =
+          if limit && blazer_user && !params[:filter] && Blazer.audit
+            queries_by_ids(Blazer::Audit.where(user_id: blazer_user.id).where("created_at > ?", 30.days.ago).where("query_id IS NOT NULL").group(:query_id).order("count_all desc").count.keys)
+          else
+            []
+          end
 
-      def blazer_user
-        send(Blazer.user_method) if Blazer.user_method && respond_to?(Blazer.user_method)
-      end
-      helper_method :blazer_user
+      @queries = Blazer::Query.named.select(:id, :name, :creator_id, :statement)
+      @queries = @queries.includes(:creator) if Blazer.user_class
 
-      def render_errors(resource)
-        @errors = resource.errors
-        action = resource.persisted? ? :edit : :new
-        render action, status: :unprocessable_entity
+      if blazer_user && params[:filter] == "mine"
+        @queries = @queries.where(creator_id: blazer_user.id).reorder(updated_at: :desc)
+      elsif blazer_user && params[:filter] == "viewed" && Blazer.audit
+        @queries = queries_by_ids(Blazer::Audit.where(user_id: blazer_user.id).order(created_at: :desc).limit(500).pluck(:query_id).uniq)
+      else
+        @queries = @queries.where("id NOT IN (?)", @my_queries.map(&:id)) if @my_queries.any?
+        @queries = @queries.limit(limit) if limit
+        @queries = @queries.order(:name)
       end
+      @queries = @queries.to_a
 
-      # do not inherit from ApplicationController - #120
-      def default_url_options
-        {}
-      end
+      @more = limit && @queries.size >= limit
 
-      # TODO  나중에는 바라보는 data_source에 따라 클라우드 서비스를 생성하도록 한다.
-      def load_service(service = CloudService.new('google'))
-        @cloud ||= service.cloud
+      @queries = (@my_queries + @queries).select { |q| !q.name.to_s.start_with?("#") || q.try(:creator).try(:id) == blazer_user.try(:id) }
+
+      @queries =
+          @queries.map do |q|
+            {
+                id: q.id,
+                name: q.name,
+                creator: blazer_user && q.try(:creator) == blazer_user ? "You" : q.try(:creator).try(Blazer.user_name),
+                vars: q.variables.join(", "),
+                to_param: q.to_param
+            }
+          end
+    end
+
+    def queries_by_ids(favorite_query_ids)
+      queries = Blazer::Query.named.where(id: favorite_query_ids)
+      queries = queries.includes(:creator) if Blazer.user_class
+      queries = queries.index_by(&:id)
+      favorite_query_ids.map { |query_id| queries[query_id] }.compact
+    end
+
+    def set_query
+      @query = Blazer::Query.find(params[:id].to_s.split("-").first)
+    end
+
+    def query_params
+      params.require(:query).permit(:name, :description, :statement, :data_source)
+    end
+
+    def blazer_params
+      params[:blazer] || {}
+    end
+
+    def csv_data(columns, rows, data_source)
+      CSV.generate do |csv|
+        csv << columns
+        rows.each do |row|
+          csv << row.each_with_index.map { |v, i| v.is_a?(Time) ? blazer_time_value(data_source, columns[i], v) : v }
+        end
       end
+    end
+
+    def blazer_time_value(data_source, k, v)
+      data_source.local_time_suffix.any? { |s| k.ends_with?(s) } ? v.to_s.sub(" UTC", "") : v.in_time_zone(Blazer.time_zone)
+    end
+    helper_method :blazer_time_value
+
+    def blazer_run_id
+      params[:run_id].to_s.gsub(/[^a-z0-9\-]/i, "")
+    end
+
   end
 end
