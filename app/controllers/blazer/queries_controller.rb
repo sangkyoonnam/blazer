@@ -18,15 +18,15 @@ module Blazer
       end
 
       @dashboards =
-        @dashboards.map do |d|
-          {
-            id: d.id,
-            name: d.name,
-            creator: blazer_user && d.try(:creator) == blazer_user ? "You" : d.try(:creator).try(Blazer.user_name),
-            to_param: d.to_param,
-            dashboard: true
-          }
-        end
+          @dashboards.map do |d|
+            {
+                id: d.id,
+                name: d.name,
+                creator: blazer_user && d.try(:creator) == blazer_user ? "You" : d.try(:creator).try(Blazer.user_name),
+                to_param: d.to_param,
+                dashboard: true
+            }
+          end
     end
 
     def index
@@ -36,8 +36,8 @@ module Blazer
 
     def new
       @query = Blazer::Query.new(
-        data_source: params[:data_source],
-        name: params[:name]
+          data_source: params[:data_source],
+          name: params[:name]
       )
       if params[:fork_query_id]
         @query.statement ||= Blazer::Query.find(params[:fork_query_id]).try(:statement)
@@ -57,11 +57,9 @@ module Blazer
 
     def show
       @statement = @query.statement.dup
-
-      process_vars(@statement, data_source)
-      process_tables(@statement, data_source)
-
       @awesome_vars = {}
+      process_vars(@statement, @query.data_source)
+      process_tables(@statement, @query.data_source)
       @sql_errors = []
       data_source = Blazer.data_sources[@query.data_source]
       @bind_vars.each do |var|
@@ -70,15 +68,7 @@ module Blazer
         @sql_errors << error if error
       end
 
-      # @options = {}
-      # @bind_vars.each do |var|
-      #   awesome_var, error, options = parse_awesome_variables(var, data_source)
-      #   @awesome_var[var] = awesome_var if awesome_var
-      #   @sql_errors << error if error
-      #   @options[var] = options
-      # end
-
-        Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
+      Blazer.transform_statement.call(data_source, @statement) if Blazer.transform_statement
     end
 
     def edit
@@ -86,10 +76,8 @@ module Blazer
 
     def export
       @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
-
-      process_vars(@statement, data_source)
-      process_tables(@statement, data_source)
-
+      process_vars(@statement, @query.data_source)
+      process_tables(@statement, @query.data_source)
       file = @cloud.extract_url(@statement, @query.id)
       file_name = file.path.gsub('./','')
       csv_read = CSV.read(file.path)
@@ -108,13 +96,12 @@ module Blazer
     end
 
     def run
+
       @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
       @statement = @query.statement.dup
       data_source = params[:data_source]
-
       process_vars(@statement, data_source)
       process_tables(@statement, data_source)
-
       @only_chart = params[:only_chart]
       @run_id = blazer_params[:run_id]
 
@@ -226,139 +213,139 @@ module Blazer
 
     private
 
-      def continue_run
-        render json: {run_id: @run_id, timestamp: @timestamp}, status: :accepted
+    def continue_run
+      render json: {run_id: @run_id, timestamp: @timestamp}, status: :accepted
+    end
+
+    def render_run
+      @checks = @query ? @query.checks.order(:id) : []
+
+      @first_row = @rows.first || []
+      @column_types = []
+      if @rows.any?
+        @columns.each_with_index do |column, i|
+          @column_types << (
+          case @first_row[i]
+            when Integer
+              "int"
+            when Float, BigDecimal
+              "float"
+            else
+              "string-ins"
+          end
+          )
+        end
       end
 
-      def render_run
-        @checks = @query ? @query.checks.order(:id) : []
+      @filename = @query.name.parameterize if @query
+      @min_width_types = @columns.each_with_index.select { |c, i| @first_row[i].is_a?(Time) || @first_row[i].is_a?(String) || @data_source.smart_columns[c] }.map(&:last)
 
-        @first_row = @rows.first || []
-        @column_types = []
-        if @rows.any?
-          @columns.each_with_index do |column, i|
-            @column_types << (
-              case @first_row[i]
-              when Integer
-                "int"
-              when Float, BigDecimal
-                "float"
-              else
-                "string-ins"
-              end
-            )
-          end
-        end
+      @boom = @result.boom if @result
 
-        @filename = @query.name.parameterize if @query
-        @min_width_types = @columns.each_with_index.select { |c, i| @first_row[i].is_a?(Time) || @first_row[i].is_a?(String) || @data_source.smart_columns[c] }.map(&:last)
+      @linked_columns = @data_source.linked_columns
 
-        @boom = @result.boom if @result
-
-        @linked_columns = @data_source.linked_columns
-
-        @markers = []
-        [["latitude", "longitude"], ["lat", "lon"], ["lat", "lng"]].each do |keys|
-          lat_index = @columns.index(keys.first)
-          lon_index = @columns.index(keys.last)
-          if lat_index && lon_index
-            @markers =
+      @markers = []
+      [["latitude", "longitude"], ["lat", "lon"], ["lat", "lng"]].each do |keys|
+        lat_index = @columns.index(keys.first)
+        lon_index = @columns.index(keys.last)
+        if lat_index && lon_index
+          @markers =
               @rows.select do |r|
                 r[lat_index] && r[lon_index]
               end.map do |r|
                 {
-                  title: r.each_with_index.map{ |v, i| i == lat_index || i == lon_index ? nil : "<strong>#{@columns[i]}:</strong> #{v}" }.compact.join("<br />").truncate(140),
-                  latitude: r[lat_index],
-                  longitude: r[lon_index]
+                    title: r.each_with_index.map{ |v, i| i == lat_index || i == lon_index ? nil : "<strong>#{@columns[i]}:</strong> #{v}" }.compact.join("<br />").truncate(140),
+                    latitude: r[lat_index],
+                    longitude: r[lon_index]
                 }
               end
-          end
-        end
-
-        respond_to do |format|
-          format.html do
-            render layout: false
-          end
-          format.csv do
-            send_data csv_data(@columns, @rows, @data_source), type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"#{@query.try(:name).try(:parameterize).presence || 'query'}.csv\""
-          end
         end
       end
 
-      def set_queries(limit = nil)
-        @my_queries =
+      respond_to do |format|
+        format.html do
+          render layout: false
+        end
+        format.csv do
+          send_data csv_data(@columns, @rows, @data_source), type: "text/csv; charset=utf-8; header=present", disposition: "attachment; filename=\"#{@query.try(:name).try(:parameterize).presence || 'query'}.csv\""
+        end
+      end
+    end
+
+    def set_queries(limit = nil)
+      @my_queries =
           if limit && blazer_user && !params[:filter] && Blazer.audit
             queries_by_ids(Blazer::Audit.where(user_id: blazer_user.id).where("created_at > ?", 30.days.ago).where("query_id IS NOT NULL").group(:query_id).order("count_all desc").count.keys)
           else
             []
           end
 
-        @queries = Blazer::Query.named.select(:id, :name, :creator_id, :statement)
-        @queries = @queries.includes(:creator) if Blazer.user_class
+      @queries = Blazer::Query.named.select(:id, :name, :creator_id, :statement)
+      @queries = @queries.includes(:creator) if Blazer.user_class
 
-        if blazer_user && params[:filter] == "mine"
-          @queries = @queries.where(creator_id: blazer_user.id).reorder(updated_at: :desc)
-        elsif blazer_user && params[:filter] == "viewed" && Blazer.audit
-          @queries = queries_by_ids(Blazer::Audit.where(user_id: blazer_user.id).order(created_at: :desc).limit(500).pluck(:query_id).uniq)
-        else
-          @queries = @queries.where("id NOT IN (?)", @my_queries.map(&:id)) if @my_queries.any?
-          @queries = @queries.limit(limit) if limit
-          @queries = @queries.order(:name)
-        end
-        @queries = @queries.to_a
+      if blazer_user && params[:filter] == "mine"
+        @queries = @queries.where(creator_id: blazer_user.id).reorder(updated_at: :desc)
+      elsif blazer_user && params[:filter] == "viewed" && Blazer.audit
+        @queries = queries_by_ids(Blazer::Audit.where(user_id: blazer_user.id).order(created_at: :desc).limit(500).pluck(:query_id).uniq)
+      else
+        @queries = @queries.where("id NOT IN (?)", @my_queries.map(&:id)) if @my_queries.any?
+        @queries = @queries.limit(limit) if limit
+        @queries = @queries.order(:name)
+      end
+      @queries = @queries.to_a
 
-        @more = limit && @queries.size >= limit
+      @more = limit && @queries.size >= limit
 
-        @queries = (@my_queries + @queries).select { |q| !q.name.to_s.start_with?("#") || q.try(:creator).try(:id) == blazer_user.try(:id) }
+      @queries = (@my_queries + @queries).select { |q| !q.name.to_s.start_with?("#") || q.try(:creator).try(:id) == blazer_user.try(:id) }
 
-        @queries =
+      @queries =
           @queries.map do |q|
             {
-              id: q.id,
-              name: q.name,
-              creator: blazer_user && q.try(:creator) == blazer_user ? "You" : q.try(:creator).try(Blazer.user_name),
-              vars: q.variables.join(", "),
-              to_param: q.to_param
+                id: q.id,
+                name: q.name,
+                creator: blazer_user && q.try(:creator) == blazer_user ? "You" : q.try(:creator).try(Blazer.user_name),
+                vars: q.variables.join(", "),
+                to_param: q.to_param
             }
           end
-      end
+    end
 
-      def queries_by_ids(favorite_query_ids)
-        queries = Blazer::Query.named.where(id: favorite_query_ids)
-        queries = queries.includes(:creator) if Blazer.user_class
-        queries = queries.index_by(&:id)
-        favorite_query_ids.map { |query_id| queries[query_id] }.compact
-      end
+    def queries_by_ids(favorite_query_ids)
+      queries = Blazer::Query.named.where(id: favorite_query_ids)
+      queries = queries.includes(:creator) if Blazer.user_class
+      queries = queries.index_by(&:id)
+      favorite_query_ids.map { |query_id| queries[query_id] }.compact
+    end
 
-      def set_query
-        @query = Blazer::Query.find(params[:id].to_s.split("-").first)
-      end
+    def set_query
+      @query = Blazer::Query.find(params[:id].to_s.split("-").first)
+    end
 
-      def query_params
-        params.require(:query).permit(:name, :description, :statement, :data_source)
-      end
+    def query_params
+      params.require(:query).permit(:name, :description, :statement, :data_source)
+    end
 
-      def blazer_params
-        params[:blazer] || {}
-      end
+    def blazer_params
+      params[:blazer] || {}
+    end
 
-      def csv_data(columns, rows, data_source)
-        CSV.generate do |csv|
-          csv << columns
-          rows.each do |row|
-            csv << row.each_with_index.map { |v, i| v.is_a?(Time) ? blazer_time_value(data_source, columns[i], v) : v }
-          end
+    def csv_data(columns, rows, data_source)
+      CSV.generate do |csv|
+        csv << columns
+        rows.each do |row|
+          csv << row.each_with_index.map { |v, i| v.is_a?(Time) ? blazer_time_value(data_source, columns[i], v) : v }
         end
       end
+    end
 
-      def blazer_time_value(data_source, k, v)
-        data_source.local_time_suffix.any? { |s| k.ends_with?(s) } ? v.to_s.sub(" UTC", "") : v.in_time_zone(Blazer.time_zone)
-      end
-      helper_method :blazer_time_value
+    def blazer_time_value(data_source, k, v)
+      data_source.local_time_suffix.any? { |s| k.ends_with?(s) } ? v.to_s.sub(" UTC", "") : v.in_time_zone(Blazer.time_zone)
+    end
+    helper_method :blazer_time_value
 
-      def blazer_run_id
-        params[:run_id].to_s.gsub(/[^a-z0-9\-]/i, "")
-      end
+    def blazer_run_id
+      params[:run_id].to_s.gsub(/[^a-z0-9\-]/i, "")
+    end
 
   end
 end
