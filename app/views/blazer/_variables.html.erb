@@ -22,150 +22,193 @@
   .custom-checkbox + .custom-checkbox {
     margin-left: 12px;
   }
+
+  .loader {
+    border: 2px solid #f3f3f3; /* Light grey */
+    border-top: 2px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 2s linear infinite;
+    text-align: left;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 </style>
 <% if @bind_vars.any? %>
-    <form id="bind_" method="get" action="<%= export_query_path(query_id: @query.id, format: "csv") %>" class="form-inline" style="margin-bottom: 10px;">
-      <% date_vars = ["start_time", "end_time"] %>
-      <% if (date_vars - @bind_vars).empty? %>
-          <% @bind_vars = @bind_vars - date_vars %>
-      <% else %>
-          <% date_vars = nil %>
-      <% end %>
+  <form id="bind_" method="get" action="<%= export_query_path(query_id: @query.id, format: "csv") %>" class="form-inline" style="margin-bottom: 10px;">
+    <% date_vars = ["start_time", "end_time"] %>
+    <% if (date_vars - @bind_vars).empty? %>
+      <% @bind_vars = @bind_vars - date_vars %>
+    <% else %>
+      <% date_vars = nil %>
+    <% end %>
 
-      <% @bind_vars.each_with_index do |var, i| %>
-          <div>
-            <%= label_tag var.capitalize %>
-            <div class="input-group">
-              <% if (awesome_vars = @awesome_vars[var]) %>
-                  <% data = awesome_vars['value'].map { |v| [v['name'], v['condition']] } %>
-                  <% if awesome_vars['style'] == 'select' %>
-                      <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
-                  <% elsif awesome_vars['style'] == 'checkbox' %>
-                      <% data.each do |datum| %>
-                          <div class="custom-control custom-checkbox" style="display: inline-block;">
-                            <input type="checkbox" class="custom-control-input" id="<%= datum[0] %>" name="<%= var %>[]" value="<%= datum[1] %>">
-                            <label class="custom-control-label" for="<%= datum[0] %>"><%= datum[0] %></label>
-                          </div>
-                      <% end %>
-                  <% elsif awesome_vars['style'] == 'radio' %>
-                      radio
-                  <% elsif %w(text value).include? awesome_vars['style'] %>
-                      <input type='text' name='<%= var %>' />
-                  <% else %>
-                      radio button
-                  <% end %>
-                  <script>
-                      $("#<%= var %>").selectize({
-                          create: true
-                      });
-                  </script>
-              <% else %>
-                  <%= text_field_tag var, params[var], style: "width: 120px; margin-right: 20px;", autofocus: i == 0 && !var.end_with?("_at") && !params[var], class: "form-control" %>
-                  <% if var.end_with?("_at") %>
-                      <script>
-                          $("#<%= var %>").daterangepicker({singleDatePicker: true, locale: {format: "YYYY-MM-DD"}, autoUpdateInput: false});
-                          // hack to start with empty date
-                          $("#<%= var %>").on("apply.daterangepicker", function(ev, picker) {
-                              $(this).val(picker.startDate.format("YYYY-MM-DD"));
-                              $(this).change();
-                          });
-                      </script>
-                  <% end %>
+    <% @bind_vars.each_with_index do |var, i| %>
+      <div>
+        <%= label_tag var.capitalize %>
+        <div class="input-group">
+          <% if (awesome_vars = @awesome_vars[var]) %>
+            <% data = awesome_vars['value'].map { |v| [v['name'], v['condition']] } %>
+            <% if awesome_vars['style'] == 'select' %>
+              <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
+            <% elsif awesome_vars['style'] == 'checkbox' %>
+              <% data.each do |datum| %>
+                <div class="custom-control custom-checkbox" style="display: inline-block;">
+                  <input type="checkbox" class="custom-control-input" id="<%= datum[0] %>" name="<%= var %>[]" value="<%= datum[1] %>">
+                  <label class="custom-control-label" for="<%= datum[0] %>"><%= datum[0] %></label>
+                </div>
               <% end %>
-            </div>
-          </div>
+            <% elsif awesome_vars['style'] == 'radio' %>
+              radio
+            <% elsif awesome_vars['style'] == 'file'  %>
+              <input type="file"  multiple="multiple"  onchange="file_upload();" style="float:left">
+              <div id="loader" class="loader" style="float:left" hidden></div>
+              <span id="check" class="glyphicon" style="display:none">&#xe013;</span>
+              <input type="text" id="csv_upload" name="<%= var %>" hidden/>
+            <% elsif %w(text value).include? awesome_vars['style'] %>
+              <input type='text' name='<%= var %>'/>
+            <% else %>
+              radio button
+            <% end %>
+            <script>
+                $("#<%= var %>").selectize({
+                    create: true
+                });
+            </script>
+          <% else %>
+            <%= text_field_tag var, params[var], style: "width: 120px; margin-right: 20px;", autofocus: i == 0 && !var.end_with?("_at") && !params[var], class: "form-control" %>
+            <% if var.end_with?("_at") %>
+              <script>
+                  $("#<%= var %>").daterangepicker({singleDatePicker: true, locale: {format: "YYYY-MM-DD"}, autoUpdateInput: false});
+                  $("#<%= var %>").on("apply.daterangepicker", function(ev, picker) {
+                      $(this).val(picker.startDate.format("YYYY-MM-DD"));
+                      $(this).change();
+                  });
+              </script>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if date_vars %>
+      <% date_vars.each do |var| %>
+        <%= hidden_field_tag var, params[var] %>
       <% end %>
 
-      <% if date_vars %>
-          <% date_vars.each do |var| %>
-              <%= hidden_field_tag var, params[var] %>
-          <% end %>
+      <%= label_tag nil, date_vars.join(" & ") %>
+      <div class="selectize-control single" style="width: 300px;">
+        <div id="reportrange" class="selectize-input" style="display: inline-block;">
+          <span>Select a time range</span>
+        </div>
+      </div>
 
-          <%= label_tag nil, date_vars.join(" & ") %>
-          <div class="selectize-control single" style="width: 300px;">
-            <div id="reportrange" class="selectize-input" style="display: inline-block;">
-              <span>Select a time range</span>
-            </div>
-          </div>
+      <script>
+          <%= blazer_js_var "timeZone", Blazer.time_zone.tzinfo.name %>
+          var format = "YYYY-MM-DD"
+          var now = moment.tz(timeZone)
 
-          <script>
-              <%= blazer_js_var "timeZone", Blazer.time_zone.tzinfo.name %>
-              var format = "YYYY-MM-DD"
-              var now = moment.tz(timeZone)
+          function dateStr(daysAgo) {
+              return now.clone().subtract(daysAgo || 0, "days").format(format)
+          }
 
-              function dateStr(daysAgo) {
-                  return now.clone().subtract(daysAgo || 0, "days").format(format)
-              }
+          function toDate(time) {
+              return moment.tz(time.format(format), timeZone)
+          }
 
-              function toDate(time) {
-                  return moment.tz(time.format(format), timeZone)
-              }
+          function setTimeInputs(start, end) {
+              $("#start_time").val(toDate(start).utc().format())
+              $("#end_time").val(toDate(end).endOf("day").utc().format())
+          }
 
-              function setTimeInputs(start, end) {
-                  $("#start_time").val(toDate(start).utc().format())
-                  $("#end_time").val(toDate(end).endOf("day").utc().format())
-              }
-
-              $("#reportrange").daterangepicker(
-                  {
-                      ranges: {
-                          "Today": [dateStr(), dateStr()],
-                          "Last 7 Days": [dateStr(6), dateStr()],
-                          "Last 30 Days": [dateStr(29), dateStr()]
-                      },
-                      locale: {
-                          format: format
-                      },
-                      startDate: dateStr(29),
-                      endDate: dateStr(),
-                      opens: "right"
+          $("#reportrange").daterangepicker(
+              {
+                  ranges: {
+                      "Today": [dateStr(), dateStr()],
+                      "Last 7 Days": [dateStr(6), dateStr()],
+                      "Last 30 Days": [dateStr(29), dateStr()]
                   },
-                  function(start, end) {
-                      setTimeInputs(start, end)
-                      submitIfCompleted($("#start_time").closest("form"))
-                  }
-              ).on("apply.daterangepicker", function(ev, picker) {
-                  setTimeInputs(picker.startDate, picker.endDate)
-                  $("#reportrange span").html(toDate(picker.startDate).format("MMMM D, YYYY") + " - " + toDate(picker.endDate).format("MMMM D, YYYY"))
-              })
-
-              if ($("#start_time").val().length > 0) {
-                  var picker = $("#reportrange").data("daterangepicker")
-                  picker.setStartDate(moment.tz($("#start_time").val(), timeZone))
-                  picker.setEndDate(moment.tz($("#end_time").val(), timeZone))
-                  $("#reportrange").trigger("apply.daterangepicker", picker)
-              } else {
-                  var picker = $("#reportrange").data("daterangepicker")
-                  $("#reportrange").trigger("apply.daterangepicker", picker)
+                  locale: {
+                      format: format
+                  },
+                  startDate: dateStr(29),
+                  endDate: dateStr(),
+                  opens: "right"
+              },
+              function(start, end) {
+                  setTimeInputs(start, end)
                   submitIfCompleted($("#start_time").closest("form"))
               }
-          </script>
-      <% end %>
+          ).on("apply.daterangepicker", function(ev, picker) {
+              setTimeInputs(picker.startDate, picker.endDate)
+              $("#reportrange span").html(toDate(picker.startDate).format("MMMM D, YYYY") + " - " + toDate(picker.endDate).format("MMMM D, YYYY"))
+          })
 
-      <input type="button" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" onclick="run();"/>
-      <hr>
-    </form>
-    <script>
+          if ($("#start_time").val().length > 0) {
+              var picker = $("#reportrange").data("daterangepicker")
+              picker.setStartDate(moment.tz($("#start_time").val(), timeZone))
+              picker.setEndDate(moment.tz($("#end_time").val(), timeZone))
+              $("#reportrange").trigger("apply.daterangepicker", picker)
+          } else {
+              var picker = $("#reportrange").data("daterangepicker")
+              $("#reportrange").trigger("apply.daterangepicker", picker)
+              submitIfCompleted($("#start_time").closest("form"))
+          }
+      </script>
+    <% end %>
 
-        var export_to = function (event) {
-            $("#bind_").submit();
-        }
+    <input type="button" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" onclick="run();"/>
+    <hr>
+  </form>
+  <script>
 
-        function run(e){
-            data= $("#bind_").serializeObject();
-            data['query_id'] = <%=@query.id%>
-                $("#results").html('<p class="text-muted">Loading...</p>');
-            runQuery(data, showRun, showError);
-        }
+      function file_upload() {
+          var fileInput = document.querySelector('form input[type=file]');
+          var attachment = fileInput.files[0];
+          var formData = new FormData();
+          formData.append('attachment', attachment, 'filename');
+          $("#loader").show();
+          $("#check").hide();
 
-        function showRun(data) {
-            $("#results").html(data)
-            $("#results table").stupidtable().stickyTableHeaders({fixedOffset: 60})
-        }
+          $.ajax({
+              url: '/media/upload',
+              processData: false,
+              contentType: false,
+              data: formData,
+              type: 'POST',
+              success: function(result){
+                  console.log(result);
+                  alert('성공!');
+                  $("#csv_upload").val(result["table_name"]);
+                  $("#loader").hide();
+                  $("#check").show()
+              }
+          });
+      }
 
-        function showError(message) {
-            $("#results").addClass("query-error").html(message)
-        }
+      var export_to = function (event) {
+          $("#bind_").submit();
+      }
 
-    </script>
+      function run(e){
+          data= $("#bind_").serializeObject();
+          data['query_id'] = <%=@query.id%>
+              $("#results").html('<p class="text-muted">Loading...</p>');
+          runQuery(data, showRun, showError);
+      }
+
+      function showRun(data) {
+          $("#results").html(data)
+          $("#results table").stupidtable().stickyTableHeaders({fixedOffset: 60})
+      }
+
+      function showError(message) {
+          $("#results").addClass("query-error").html(message)
+      }
+
+  </script>
 <% end %>
