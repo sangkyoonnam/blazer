@@ -34,9 +34,9 @@ module Blazer
         params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]  # 현재 우리쪽에서는 쓰지않음
         awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
       end
-      @success = @bind_vars.all? { |v| params[v] } # parameter 로 각 동적변수들이 넘어왔는지 체크 . 이게 되었다면 매핑준비는 완료
+      @success = @bind_vars.all? { |v| params[v] } # parameter 로 각 동적변수들이 넘어왔는지 체크. 맨처음 페이지에 진입할때는 필요없다 여기서 아웃
       if @success
-        @bind_vars.each do |var|
+        @bind_vars.each do |var|       #bind_vars 변수와 param으로 넘어온 값들을 처리한다.
           value = params[var].presence
           if value
             if ["start_time", "end_time"].include?(var)
@@ -63,13 +63,16 @@ module Blazer
           if variable.present? && variable['type'] == 'condition'
             if value.present? && variable['style'] == 'checkbox'
               statement.gsub!("{#{var}}"," #{value.join(' or ')} ")
-            elsif value.present?
+            elsif value.present? && variable['style'] == 'file'
+              table_name = "wheelhouse_temp.#{value}"
+              statement.gsub!("{#{var}}", table_name)
+            elsif value.present? || variable['style'] == 'textbox'
               statement.gsub!("{#{var}}", value)
             else
               statement.gsub!("{#{var}}", 'true')
             end
           else
-            statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))
+            statement.gsub!("{#{var}}", ActiveRecord::Base.connection.quote(value))   #blazer.yml에 정의되어 있지 않는 변수에 대해서는 value값으로 치환해서 처리한다.
           end
         end
       end
