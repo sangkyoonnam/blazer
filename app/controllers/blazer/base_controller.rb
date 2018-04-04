@@ -66,7 +66,7 @@ module Blazer
             elsif value.present? && variable['style'] == 'file'
               table_name = "wheelhouse_temp.#{value}"
               statement.gsub!("{#{var}}", table_name)
-            elsif value.present? || variable['style'] == 'textbox'
+            elsif value.present? || variable['style'] == 'text'
               statement.gsub!("{#{var}}", value)
             else
               statement.gsub!("{#{var}}", 'true')
