@@ -98,7 +98,7 @@ module Blazer
     def run
 
       @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
-      @statement = @query.statement.dup
+      @statement = @query.present? ? @query.statement.dup : params[:statement]
       data_source = params[:data_source]
       process_vars(@statement, data_source)
       process_tables(@statement, data_source)
