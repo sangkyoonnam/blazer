@@ -93,7 +93,7 @@ module Blazer
       time = Time.now.strftime('%Y%m%d')
       temp_file_path = "CSV/#{time}/"
       temp_file_name = "#{variable_params[:start_at]}_#{variable_params[:end_at]}_#{@query.name}.csv"
-      local_file_path = "#{Rails.root}/tmp/#{temp_file_name}"
+      local_file_path = "#{Rails.root}/tmp/upload/#{temp_file_name}"
 
       query_result = GoogleCloud.new.execute_query(@statement)
 
