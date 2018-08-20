@@ -90,7 +90,7 @@ module Blazer
       process_vars(@statement, @query.data_source)
       process_tables(@statement, @query.data_source)
 
-      temp_file_path = "test/#{Time.now.strftime('%Y%m%d')}/"
+      temp_file_path = "CSV/#{Time.now.strftime('%Y%m%d')}/"
       temp_file_name = "#{variable_params[:start_at]}_#{variable_params[:end_at]}_#{@query.name}.csv"
       local_file_path = "#{Rails.root}/tmp/upload/#{temp_file_name}"
 
