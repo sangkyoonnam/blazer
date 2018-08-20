@@ -74,6 +74,16 @@ module Blazer
     def edit
     end
 
+    def show_link
+      @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
+      @statement = @query.present? ? @query.statement.dup : params[:statement]
+      process_vars(@statement, @query.data_source)
+      process_tables(@statement, @query.data_source)
+      gcs_file_link = @cloud.extract_gcs_link(@statement, @query.id)
+
+      render json: {gcs_file_link: gcs_file_link}, status: :accepted
+    end
+
     def export
       @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
       process_vars(@statement, @query.data_source)

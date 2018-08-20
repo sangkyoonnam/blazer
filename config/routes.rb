@@ -6,6 +6,7 @@ Blazer::Engine.routes.draw do
     get :tables, on: :collection
     get :schema, on: :collection
     get :export, on: :member
+    post :show_link, on: :collection
   end
   resources :checks, except: [:show] do
     get :run, on: :member

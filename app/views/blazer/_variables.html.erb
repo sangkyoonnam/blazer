@@ -162,7 +162,11 @@
     <% end %>
 
     <input type="button" class="btn btn-success" value="Run" style="vertical-align: top; margin-top: 12px;" onclick="run();"/>
+    <input type="button" class="btn btn-default" value="링크저장" style="vertical-align: top; margin-top: 12px;" onclick="show_link();"/>
     <hr>
+    <div color="blue">
+      <div id="gcs_link" style="font-size: 15; color: blue"></div>
+    </div>
   </form>
   <script>
 
@@ -188,6 +192,23 @@
                   $("#check").show()
               }
           });
+      }
+
+      function show_link(e) {
+          data = $("#bind_").serializeObject();
+          data['query_id'] = <%=@query.id%>
+
+              $.ajax({
+                  url: '/blazer/queries/show_link',
+                  data: data,
+                  type: 'POST',
+                  success: function (result) {
+                      alert('성공!');
+                      console.log(result);
+                      test = result;
+                      $("#gcs_link").text(result["gcs_file_link"]);
+                  }
+              });
       }
 
       var export_to = function (event) {
