@@ -98,7 +98,6 @@ module Blazer
       query_result = GoogleCloud.new.execute_query(@statement)
 
       CSV.open(local_file_path, 'wb') do |csv|
-        csv << query_result.headers
         query_result.map { |query| csv << Array.new(query.map { |k, v| v }) }
       end
 
