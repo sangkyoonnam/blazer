@@ -90,7 +90,8 @@ module Blazer
       process_vars(@statement, @query.data_source)
       process_tables(@statement, @query.data_source)
 
-      temp_file_path = "CSV/#{Time.now.strftime('%Y%m%d')}/"
+      time = Time.now.strftime('%Y%m%d')
+      temp_file_path = "CSV/#{time}/"
       temp_file_name = "#{variable_params[:start_at]}_#{variable_params[:end_at]}_#{@query.name}.csv"
       local_file_path = "#{Rails.root}/tmp/upload/#{temp_file_name}"
 
@@ -105,7 +106,7 @@ module Blazer
 
       FileUtils.rm(local_file_path)
 
-      render json: {retargeting_link: "s3n://read-in-spark/#{temp_file_path}#{temp_file_name}"}, status: :accepted
+      render json: {retargeting_link: "#{time}/#{temp_file_name}"}, status: :accepted
     end
 
     def export
