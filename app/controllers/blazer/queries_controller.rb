@@ -84,6 +84,30 @@ module Blazer
       render json: {gcs_file_link: gcs_file_link}, status: :accepted
     end
 
+    def upload_s3
+      @query = Query.find_by(id: params[:query_id]) if params[:query_id].present?
+      @statement = @query.statement.dup
+      process_vars(@statement, @query.data_source)
+      process_tables(@statement, @query.data_source)
+
+      temp_file_path = "test/#{Time.now.strftime('%Y%m%d')}/"
+      temp_file_name = "#{variable_params[:start_at]}_#{variable_params[:end_at]}_#{@query.name}.csv"
+      local_file_path = "#{Rails.root}/tmp/upload/#{temp_file_name}"
+
+      query_result = GoogleCloud.new.execute_query(@statement)
+
+      CSV.open(local_file_path, 'wb') do |csv|
+        csv << query_result.headers
+        query_result.map { |query| csv << Array.new(query.map { |k, v| v }) }
+      end
+
+      AwsS3Service.new.upload_file(temp_file_path, temp_file_name, local_file_path)
+
+      FileUtils.rm(local_file_path)
+
+      render json: {retargeting_link: "s3n://read-in-spark/#{temp_file_path}#{temp_file_name}"}, status: :accepted
+    end
+
     def export
       @statement = @query.statement.dup  # 왜 이렇게 하나 싶었는데 값의 오염을 막기 위해서
       process_vars(@statement, @query.data_source)

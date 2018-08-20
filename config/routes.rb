@@ -7,6 +7,7 @@ Blazer::Engine.routes.draw do
     get :schema, on: :collection
     get :export, on: :member
     post :show_link, on: :collection
+    post :upload_s3, on: :collection
   end
   resources :checks, except: [:show] do
     get :run, on: :member
