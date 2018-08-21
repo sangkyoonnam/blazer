@@ -134,7 +134,7 @@ module Blazer
         if options[:run_id]
           comment << ",run_id:#{options[:run_id]}"
         end
-        result = run_statement_helper(statement, comment, async ? options[:run_id] : nil)
+        result = run_statement_helper(statement, comment, async ? options[:run_id] : nil, options)
       end
 
       result
@@ -158,9 +158,9 @@ module Blazer
 
     protected
 
-    def run_statement_helper(statement, comment, run_id)
+    def run_statement_helper(statement, comment, run_id, options={})
       start_time = Time.now
-      columns, rows, error = @adapter_instance.run_statement(statement, comment)
+      columns, rows, error = @adapter_instance.run_statement(statement, comment, options)
       duration = Time.now - start_time
 
       cache_data = nil

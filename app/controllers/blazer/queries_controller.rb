@@ -146,6 +146,7 @@ module Blazer
       data_source = params[:data_source]
       process_vars(@statement, data_source)
       process_tables(@statement, data_source)
+      blind_links = process_file_link(@statement, data_source)
       @only_chart = params[:only_chart]
       @run_id = blazer_params[:run_id]
 
@@ -180,6 +181,13 @@ module Blazer
         @run_id = blazer_run_id
 
         options = {user: blazer_user, query: @query, refresh_cache: params[:check], run_id: @run_id, async: Blazer.async}
+        url_infos = {}
+        blind_links.map{ |link|
+          url_infos[link] = params[link]
+        }
+        external = @cloud.external_data_source_infos(url_infos)
+        options[:external] = external #gcs_link 로 받아온 경우 bigquery adaptor에 옵션을 주기 위함이다.
+
         if Blazer.async && request.format.symbol != :csv  #여기 구문은 실행되지 않는다
 
           result = []
