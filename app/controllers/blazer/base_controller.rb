@@ -78,6 +78,32 @@ module Blazer
       end
     end
 
+    #gcs 파일 링크로 빅쿼리에 적재해서 사용한다.
+    def process_file_link(statement, data_source)
+      awesome_variables = {}
+      @bind_links = @bind_links.select{|var| var.start_with? 'gcs_file_link_'}
+      return [] unless @bind_links.present?
+
+      @bind_links.each do |var|
+        params[var] ||= Blazer.data_sources[data_source].variable_defaults[var]
+        awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
+      end
+
+      @success = @bind_links.all? { |v| params[v] }
+      if @success
+        @bind_links.each do |var|
+          awesome_variables[var] ||= Blazer.data_sources[data_source].awesome_variables[var]
+        end
+
+        @bind_links.each do |var|
+          variable = awesome_variables[var]
+          value = variable['value'][0]['table_name']
+          statement.gsub!("{#{var}}", value )
+        end
+      end
+
+    end
+
     def process_tables(statement, data_source)
       (@bind_tables ||= []).concat(Blazer.extract_vars(statement))
       awesome_variables = {}

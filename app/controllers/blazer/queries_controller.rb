@@ -58,11 +58,14 @@ module Blazer
     def show
       @statement = @query.statement.dup
       @awesome_vars = {}
+
       process_vars(@statement, @query.data_source)
       process_tables(@statement, @query.data_source)
+      process_file_link(@statement, @query.data_source)
+
       @sql_errors = []
       data_source = Blazer.data_sources[@query.data_source]
-      @bind_vars.each do |var|
+      (@bind_vars + @bind_links).each do |var|
         awesome_var, error = parse_awesome_variables(var, data_source)
         @awesome_vars[var] = awesome_var if awesome_var
         @sql_errors << error if error
@@ -79,7 +82,14 @@ module Blazer
       @statement = @query.present? ? @query.statement.dup : params[:statement]
       process_vars(@statement, @query.data_source)
       process_tables(@statement, @query.data_source)
-      gcs_file_link = @cloud.extract_gcs_link(@statement, @query.id)
+      process_file_link(@statement, @query.data_source)
+      options = {}
+
+      @bind_links.map{ |link|
+        options[link] = params[link]
+      }
+
+      gcs_file_link = @cloud.extract_gcs_link(@statement, @query.id, options)
 
       render json: {gcs_file_link: gcs_file_link}, status: :accepted
     end

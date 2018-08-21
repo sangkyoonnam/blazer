@@ -34,25 +34,34 @@
   }
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 </style>
-<% if @bind_vars.any? %>
+<% if (@bind_vars + @bind_links).any? %>
+  <%= params %>
+  <div></div>
+  <%= @awesome_vars %>
+  <div></div>
+  <%= @bind_vars %>
   <form id="bind_" method="get" action="<%= export_query_path(query_id: @query.id, format: "csv") %>" class="form-inline" style="margin-bottom: 10px;">
     <% date_vars = ["start_time", "end_time"] %>
-    <% if (date_vars - @bind_vars).empty? %>
+    <% if (date_vars - @bind_vars - @bind_links).empty? %>
       <% @bind_vars = @bind_vars - date_vars %>
     <% else %>
       <% date_vars = nil %>
     <% end %>
 
-    <% @bind_vars.each_with_index do |var, i| %>
+    <% (@bind_vars + @bind_links).each_with_index do |var, i| %>
       <div>
         <%= label_tag var.capitalize %>
         <div class="input-group">
           <% if (awesome_vars = @awesome_vars[var]) %>
-            <% data = awesome_vars['value'].map { |v| [v['name'], v['condition']] } %>
+            <% data = awesome_vars['value'].map {|v| [v['name'], v['condition']]} %>
             <% if awesome_vars['style'] == 'select' %>
               <%= select_tag var, options_for_select([[nil, nil]] + data, selected: params[var]), style: "margin-right: 20px; width: 200px; display: none;" %>
             <% elsif awesome_vars['style'] == 'checkbox' %>
@@ -64,8 +73,8 @@
               <% end %>
             <% elsif awesome_vars['style'] == 'radio' %>
               radio
-            <% elsif awesome_vars['style'] == 'file'  %>
-              <input type="file"  multiple="multiple"  onchange="file_upload();" style="float:left">
+            <% elsif awesome_vars['style'] == 'file' %>
+              <input type="file" multiple="multiple" onchange="file_upload();" style="float:left">
               <div id="loader" class="loader" style="float:left" hidden></div>
               <span id="check" class="glyphicon" style="display:none">&#xe013;</span>
               <input type="text" id="csv_upload" name="<%= var %>" hidden/>
@@ -74,17 +83,24 @@
             <% else %>
               radio button
             <% end %>
+            <%= awesome_vars %>
             <script>
                 $("#<%= var %>").selectize({
                     create: true
                 });
             </script>
           <% else %>
+            <%= var %>
+            <%= awesome_vars %>
             <%= text_field_tag var, params[var], style: "width: 120px; margin-right: 20px;", autofocus: i == 0 && !var.end_with?("_at") && !params[var], class: "form-control" %>
             <% if var.end_with?("_at") %>
               <script>
-                  $("#<%= var %>").daterangepicker({singleDatePicker: true, locale: {format: "YYYY-MM-DD"}, autoUpdateInput: false});
-                  $("#<%= var %>").on("apply.daterangepicker", function(ev, picker) {
+                  $("#<%= var %>").daterangepicker({
+                      singleDatePicker: true,
+                      locale: {format: "YYYY-MM-DD"},
+                      autoUpdateInput: false
+                  });
+                  $("#<%= var %>").on("apply.daterangepicker", function (ev, picker) {
                       $(this).val(picker.startDate.format("YYYY-MM-DD"));
                       $(this).change();
                   });
@@ -139,11 +155,11 @@
                   endDate: dateStr(),
                   opens: "right"
               },
-              function(start, end) {
+              function (start, end) {
                   setTimeInputs(start, end)
                   submitIfCompleted($("#start_time").closest("form"))
               }
-          ).on("apply.daterangepicker", function(ev, picker) {
+          ).on("apply.daterangepicker", function (ev, picker) {
               setTimeInputs(picker.startDate, picker.endDate)
               $("#reportrange span").html(toDate(picker.startDate).format("MMMM D, YYYY") + " - " + toDate(picker.endDate).format("MMMM D, YYYY"))
           })
@@ -184,7 +200,7 @@
               contentType: false,
               data: formData,
               type: 'POST',
-              success: function(result){
+              success: function (result) {
                   console.log(result);
                   alert('성공!');
                   $("#csv_upload").val(result["table_name"]);
@@ -194,19 +210,8 @@
           });
       }
 
-      function upload_s3(e) {
-          data = $("#bind_").serializeObject();
-          data['query_id'] = <%=@query.id%>
-
-              $.ajax({
-                  url: '/blazer/queries/upload_s3',
-                  data: data,
-                  type: 'POST',
-                  success: function (result) {
-                      alert('리타겟팅 링크 추출 완료.');
-                      $("#retargeting_link").text(result["retargeting_link"]);
-                  }
-              });
+      var export_to = function (event) {
+          $("#bind_").submit();
       }
 
       function show_link(e) {
@@ -226,18 +231,15 @@
               });
       }
 
-      var export_to = function (event) {
-          $("#bind_").submit();
-      }
-
-      function run(e){
-          data= $("#bind_").serializeObject();
+      function run(e) {
+          data = $("#bind_").serializeObject();
           data['query_id'] = <%=@query.id%>
               $("#results").html('<p class="text-muted">Loading...</p>');
           runQuery(data, showRun, showError);
       }
 
       function showRun(data) {
+          console.log(data);
           $("#results").html(data)
           $("#results table").stupidtable().stickyTableHeaders({fixedOffset: 60})
       }
