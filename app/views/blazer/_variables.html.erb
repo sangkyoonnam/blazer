@@ -224,6 +224,21 @@
               });
       }
 
+      function upload_s3(e) {
+          data = $("#bind_").serializeObject();
+          data['query_id'] = <%=@query.id%>
+
+              $.ajax({
+                  url: '/blazer/queries/upload_s3',
+                  data: data,
+                  type: 'POST',
+                  success: function (result) {
+                      alert('리타겟팅 링크 추출 완료.');
+                      $("#retargeting_link").text(result["retargeting_link"]);
+                  }
+              });
+      }
+
       function run(e) {
           data = $("#bind_").serializeObject();
           data['query_id'] = <%=@query.id%>

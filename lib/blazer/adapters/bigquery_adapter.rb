@@ -7,7 +7,6 @@ module Blazer
         error = nil
 
         begin
-          options = {}
           options[:timeout] = data_source.timeout.to_i * 1000 if data_source.timeout
           results = bigquery.query(statement, external: options[:external]) 
 
