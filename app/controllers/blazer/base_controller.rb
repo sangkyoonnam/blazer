@@ -67,7 +67,7 @@ module Blazer
               table_name = "wheelhouse_temp.#{value}"
               statement.gsub!("{#{var}}", table_name)
             elsif value.present? || variable['style'] == 'text'
-              statement.gsub!("{#{var}}", value)
+              statement.gsub!("{#{var}}", value.to_s)
             else
               statement.gsub!("{#{var}}", 'true')
             end
