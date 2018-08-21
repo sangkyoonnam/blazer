@@ -45,9 +45,6 @@
 <% if (@bind_vars + @bind_links).any? %>
   <%= params %>
   <div></div>
-  <%= @awesome_vars %>
-  <div></div>
-  <%= @bind_vars %>
   <form id="bind_" method="get" action="<%= export_query_path(query_id: @query.id, format: "csv") %>" class="form-inline" style="margin-bottom: 10px;">
     <% date_vars = ["start_time", "end_time"] %>
     <% if (date_vars - @bind_vars - @bind_links).empty? %>
@@ -90,8 +87,6 @@
                 });
             </script>
           <% else %>
-            <%= var %>
-            <%= awesome_vars %>
             <%= text_field_tag var, params[var], style: "width: 120px; margin-right: 20px;", autofocus: i == 0 && !var.end_with?("_at") && !params[var], class: "form-control" %>
             <% if var.end_with?("_at") %>
               <script>
