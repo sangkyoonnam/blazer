@@ -58,11 +58,14 @@ module Blazer
     def show
       @statement = @query.statement.dup
       @awesome_vars = {}
+
       process_vars(@statement, @query.data_source)
       process_tables(@statement, @query.data_source)
+      process_file_link(@statement, @query.data_source)
+
       @sql_errors = []
       data_source = Blazer.data_sources[@query.data_source]
-      @bind_vars.each do |var|
+      (@bind_vars + @bind_links).each do |var|
         awesome_var, error = parse_awesome_variables(var, data_source)
         @awesome_vars[var] = awesome_var if awesome_var
         @sql_errors << error if error
@@ -79,7 +82,14 @@ module Blazer
       @statement = @query.present? ? @query.statement.dup : params[:statement]
       process_vars(@statement, @query.data_source)
       process_tables(@statement, @query.data_source)
-      gcs_file_link = @cloud.extract_gcs_link(@statement, @query.id)
+      process_file_link(@statement, @query.data_source)
+      options = {}
+
+      @bind_links.map{ |link|
+        options[link] = params[link]
+      }
+
+      gcs_file_link = @cloud.extract_gcs_link(@statement, @query.id, options)
 
       render json: {gcs_file_link: gcs_file_link}, status: :accepted
     end
@@ -136,6 +146,7 @@ module Blazer
       data_source = params[:data_source]
       process_vars(@statement, data_source)
       process_tables(@statement, data_source)
+      blind_links = process_file_link(@statement, data_source)
       @only_chart = params[:only_chart]
       @run_id = blazer_params[:run_id]
 
@@ -170,6 +181,13 @@ module Blazer
         @run_id = blazer_run_id
 
         options = {user: blazer_user, query: @query, refresh_cache: params[:check], run_id: @run_id, async: Blazer.async}
+        url_infos = {}
+        blind_links.map{ |link|
+          url_infos[link] = params[link]
+        }
+        external = @cloud.external_data_source_infos(url_infos)
+        options[:external] = external #gcs_link 로 받아온 경우 bigquery adaptor에 옵션을 주기 위함이다.
+
         if Blazer.async && request.format.symbol != :csv  #여기 구문은 실행되지 않는다
 
           result = []
