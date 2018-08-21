@@ -43,7 +43,6 @@
   }
 </style>
 <% if (@bind_vars + @bind_links).any? %>
-  <%= params %>
   <div></div>
   <form id="bind_" method="get" action="<%= export_query_path(query_id: @query.id, format: "csv") %>" class="form-inline" style="margin-bottom: 10px;">
     <% date_vars = ["start_time", "end_time"] %>
