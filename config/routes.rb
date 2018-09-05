@@ -6,6 +6,7 @@ Blazer::Engine.routes.draw do
     get :tables, on: :collection
     get :schema, on: :collection
     get :export, on: :member
+    get :summarize_table, on: :collection
     post :show_link, on: :collection
     post :upload_s3, on: :collection
   end

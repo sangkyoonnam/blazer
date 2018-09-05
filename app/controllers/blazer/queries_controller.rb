@@ -263,6 +263,16 @@ module Blazer
       head :ok
     end
 
+    def summarize_table
+      dataset_id = params[:dataset_id]
+      bigquery = GoogleCloud.new.bigquery
+      tables = bigquery.query "SELECT REGEXP_EXTRACT(table_id, r'^[a-zA-Z_]+') AS table_name FROM `#{dataset_id}.__TABLES_SUMMARY__` GROUP BY table_name"
+
+      tables = tables.map { |table| table[:table_name][0..-2] if table[:table_name].present? }
+
+      render json: { table: tables }
+    end
+
     private
 
     def continue_run

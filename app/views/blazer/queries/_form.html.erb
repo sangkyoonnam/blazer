@@ -57,6 +57,16 @@
       </div>
     </div>
   <% end %>
+  <div style="position: absolute;top: 15%;left: 2%;">
+    <p>모든 테이블은 테이블이름_날짜</p>
+    <p>예) click_20180830</p>
+    <% @bigquery.datasets.each do |dataset| %>
+      <div>
+        <a onclick="click_dataset(this);" style="color: #2d4ba8;cursor:pointer;"><%= dataset.dataset_id %></a>
+        <div id="<%= dataset.dataset_id %>" style="position: relative;left: 7%;"></div>
+      </div>
+    <% end %>
+  </div>
   <div id="results">
     <p class="text-muted" v-if="running">Loading...</p>
     <div id="results-html" v-if="!running" :class="{ 'query-error': error }"></div>
@@ -66,6 +76,24 @@
 <script>
   <%= blazer_js_var "params", variable_params %>
   <%= blazer_js_var "previewStatement", Hash[Blazer.data_sources.map { |k, v| [k, v.preview_statement] }] %>
+
+  function click_dataset(dataset) {
+      dataset_id = $(dataset).text()
+      data = { 'dataset_id': dataset_id }
+      console.log(data['dataset_id'])
+
+      $.ajax({
+          url: '/blazer/queries/summarize_table',
+          data: data,
+          type: 'GET',
+          success: function (result) {
+              console.log(result['table'])
+              $.each( result['table'], function (i, val) {
+                  $('#' + dataset_id).append('<p style="margin: 0">' + val + '</p>')
+              });
+          }
+      })
+  };
 
   var app = new Vue({
     el: "#app",
