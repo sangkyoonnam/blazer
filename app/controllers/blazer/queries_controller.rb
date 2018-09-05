@@ -35,6 +35,8 @@ module Blazer
     end
 
     def new
+      @bigquery = GoogleCloud.new.bigquery
+
       @query = Blazer::Query.new(
           data_source: params[:data_source],
           name: params[:name]
