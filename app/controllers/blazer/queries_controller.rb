@@ -79,6 +79,7 @@ module Blazer
     end
 
     def edit
+      @bigquery = GoogleCloud.new.bigquery
     end
 
     def show_link
