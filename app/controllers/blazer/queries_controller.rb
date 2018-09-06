@@ -3,6 +3,8 @@ module Blazer
     before_action :set_query, only: [:show, :edit, :update, :destroy, :refresh, :export]
     before_action :authenticate_user!, only: [:show, :edit, :update, :destroy, :refresh, :export]
 
+    before_action :load_service
+
     def home
       if params[:filter] == "dashboards"
         @queries = []
@@ -267,10 +269,14 @@ module Blazer
 
     def summarize_table
       dataset_id = params[:dataset_id]
-      bigquery = GoogleCloud.new.bigquery
-      tables = bigquery.query "SELECT REGEXP_EXTRACT(table_id, r'^[a-zA-Z_]+') AS table_name FROM `#{dataset_id}.__TABLES_SUMMARY__` GROUP BY table_name"
+      bigquery = @cloud.bigquery
+      begin
+        tables = bigquery.query "SELECT REGEXP_EXTRACT(table_id, r'^[a-zA-Z_]+') AS table_name FROM `#{dataset_id}.__TABLES_SUMMARY__` WHERE REGEXP_EXTRACT(table_id, r'^[a-zA-Z_]+') IS NOT NULL GROUP BY table_name"
 
-      tables = tables.map { |table| table[:table_name][0..-2] if table[:table_name].present? }
+        tables = tables.map { |table| table[:table_name] if table[:table_name].present? }
+      rescue => e
+        tables = { :table_name => '테이블 정보가 없습니다.'}
+      end
 
       render json: { table: tables }
     end
@@ -290,12 +296,12 @@ module Blazer
         @columns.each_with_index do |column, i|
           @column_types << (
           case @first_row[i]
-            when Integer
-              "int"
-            when Float, BigDecimal
-              "float"
-            else
-              "string-ins"
+          when Integer
+            "int"
+          when Float, BigDecimal
+            "float"
+          else
+            "string-ins"
           end
           )
         end
@@ -411,5 +417,9 @@ module Blazer
       params[:run_id].to_s.gsub(/[^a-z0-9\-]/i, "")
     end
 
+    # TODO  나중에는 바라보는 data_source에 따라 클라우드 서비스를 생성하도록 한다.
+    def load_service(service = CloudService.new('google'))
+      @cloud ||= service.cloud
+    end
   end
 end

@@ -1,267 +1,325 @@
+<style>
+  .page {
+    margin: 20px 0
+  }
+
+  .wrapper {
+    margin: 0 auto;
+    position: relative;
+    padding: 0 20px;
+    min-height: 600px;
+  }
+
+  .content-wrapper {
+    float: right;
+    width: 100%;
+  }
+
+  .content {
+    margin-left: 320px;
+    clear: both;
+    overflow: auto;
+    min-height: 600px;
+  }
+
+  .sidebar {
+    position: relative;
+    width: 320px;
+    margin-right: -320px;
+    float: left;
+    overflow: hidden;
+    min-height: 600px;
+  }
+
+  @media only screen and (max-width: 768px) {
+    .sidebar {
+      display: none;
+    }
+    .content {
+      margin-right: 0;
+    }
+  }
+</style>
+
 <% if @query.errors.any? %>
   <div class="alert alert-danger"><%= @query.errors.full_messages.first %></div>
 <% end %>
 
-<div id="app" v-cloak>
-  <%= form_for @query, url: (@query.persisted? ? query_path(@query, variable_params) : queries_path(variable_params)), html: {autocomplete: "off"} do |f| %>
-    <div class="row">
-      <div id="statement-box" class="col-xs-8">
-        <div class= "form-group">
-          <%= f.hidden_field :statement %>
-          <div id="editor-container">
-            <div id="editor" :style="{ height: editorHeight }"><%= @query.statement %></div>
+<div class="page">
+  <div class="wrapper">
+    <div class="sidebar">
+      <div>
+        <p>테이블 이름 뒤에 _가 붙을 경우 날짜를 추가해야함.</p>
+        <p>테이블이름_날짜 예) click_20180830</p>
+        <% @bigquery.datasets.each do |dataset| %>
+          <div>
+            <a onclick="click_dataset(this);" style="color: #2d4ba8;cursor:pointer;"><%= dataset.dataset_id %></a>
+            <div id="<%= dataset.dataset_id %>" style="margin-left: 15px;"></div>
           </div>
-        </div>
-        <div class="form-group text-right">
-          <div class="pull-left" style="margin-top: 9px;">
-            <%= link_to "Back", :back %>
-          </div>
-          <a :href="dataSourcePath" target="_blank" style="margin-right: 10px;">Schema</a>
-          <%= f.select :data_source, Blazer.data_sources.values.select { |ds| q = @query.dup; q.data_source = ds.id; q.editable?(blazer_user) }.map { |ds| [ds.name, ds.id] }, {}, class: ("hide" if Blazer.data_sources.size == 1), style: "width: 140px;" %>
-          <div id="tables" style="display: inline-block; width: 250px; margin-right: 10px;">
-            <select id="table_names" style="width: 240px;" placeholder="Preview table"></select>
-          </div>
-          <a v-on:click="run" v-if="!running" class="btn btn-info" style="vertical-align: top; width: 70px;">Run</a>
-          <a v-on:click="cancel" v-if="running" class="btn btn-danger" style="vertical-align: top; width: 70px;">Cancel</a>
-        </div>
-      </div>
-      <div class="col-xs-4">
-        <div class="form-group">
-          <%= f.label :name %>
-          <%= f.text_field :name, class: "form-control" %>
-        </div>
-        <div class="form-group">
-          <%= f.label :description %>
-          <%= f.text_area :description, placeholder: "Optional", style: "height: 80px;", class: "form-control" %>
-        </div>
-        <div class="text-right">
-          <%= f.submit "For Enter Press", class: "hide" %>
-          <% if @query.persisted? %>
-            <%= link_to "Delete", query_path(@query), method: :delete, "data-confirm" => "Are you sure?", class: "btn btn-danger" %>
-            <%= f.submit "Fork", class: "btn btn-info" %>
-          <% end %>
-          <%= f.submit @query.persisted? ? "Update" : "Create", class: "btn btn-success" %>
-        </div>
-        <% if @query.persisted? %>
-          <% dashboards_count = @query.dashboards.count %>
-          <% checks_count = @query.checks.count %>
-          <% words = [] %>
-          <% words << pluralize(dashboards_count, "dashboard") if dashboards_count > 0 %>
-          <% words << pluralize(checks_count, "check") if checks_count > 0 %>
-          <% if words.any? %>
-            <div class="alert alert-info" style="margin-top: 10px; padding: 8px 12px;">
-              Part of <%= words.to_sentence %>. Be careful when editing.
-            </div>
-          <% end %>
         <% end %>
       </div>
     </div>
-  <% end %>
-  <div style="position: absolute;top: 15%;left: 2%;">
-    <p>모든 테이블은 테이블이름_날짜</p>
-    <p>예) click_20180830</p>
-    <% @bigquery.datasets.each do |dataset| %>
-      <div>
-        <a onclick="click_dataset(this);" style="color: #2d4ba8;cursor:pointer;"><%= dataset.dataset_id %></a>
-        <div id="<%= dataset.dataset_id %>" style="position: relative;left: 7%;"></div>
+
+    <div class="content-wrapper">
+      <div class="content" id="app" v-cloak>
+        <%= form_for @query, url: (@query.persisted? ? query_path(@query, variable_params) : queries_path(variable_params)), html: {autocomplete: "off"} do |f| %>
+          <div class="row">
+            <div id="statement-box" class="col-xs-8">
+              <div class= "form-group">
+                <%= f.hidden_field :statement %>
+                <div id="editor-container">
+                  <div id="editor" :style="{ height: editorHeight }"><%= @query.statement %></div>
+                </div>
+              </div>
+              <div class="form-group text-right">
+                <div class="pull-left" style="margin-top: 9px;">
+                  <%= link_to "Back", :back %>
+                </div>
+                <a :href="dataSourcePath" target="_blank" style="margin-right: 10px;">Schema</a>
+                <%= f.select :data_source, Blazer.data_sources.values.select { |ds| q = @query.dup; q.data_source = ds.id; q.editable?(blazer_user) }.map { |ds| [ds.name, ds.id] }, {}, class: ("hide" if Blazer.data_sources.size == 1), style: "width: 140px;" %>
+                <div id="tables" style="display: inline-block; width: 250px; margin-right: 10px;">
+                  <select id="table_names" style="width: 240px;" placeholder="Preview table"></select>
+                </div>
+                <a v-on:click="run" v-if="!running" class="btn btn-info" style="vertical-align: top; width: 70px;">Run</a>
+                <a v-on:click="cancel" v-if="running" class="btn btn-danger" style="vertical-align: top; width: 70px;">Cancel</a>
+              </div>
+            </div>
+            <div class="col-xs-4">
+              <div class="form-group">
+                <%= f.label :name %>
+                <%= f.text_field :name, class: "form-control" %>
+              </div>
+              <div class="form-group">
+                <%= f.label :description %>
+                <%= f.text_area :description, placeholder: "Optional", style: "height: 80px;", class: "form-control" %>
+              </div>
+              <div class="text-right">
+                <%= f.submit "For Enter Press", class: "hide" %>
+                <% if @query.persisted? %>
+                  <%= link_to "Delete", query_path(@query), method: :delete, "data-confirm" => "Are you sure?", class: "btn btn-danger" %>
+                  <%= f.submit "Fork", class: "btn btn-info" %>
+                <% end %>
+                <%= f.submit @query.persisted? ? "Update" : "Create", class: "btn btn-success" %>
+              </div>
+              <% if @query.persisted? %>
+                <% dashboards_count = @query.dashboards.count %>
+                <% checks_count = @query.checks.count %>
+                <% words = [] %>
+                <% words << pluralize(dashboards_count, "dashboard") if dashboards_count > 0 %>
+                <% words << pluralize(checks_count, "check") if checks_count > 0 %>
+                <% if words.any? %>
+                  <div class="alert alert-info" style="margin-top: 10px; padding: 8px 12px;">
+                    Part of <%= words.to_sentence %>. Be careful when editing.
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+        <div id="results">
+          <p class="text-muted" v-if="running">Loading...</p>
+          <div id="results-html" v-if="!running" :class="{ 'query-error': error }"></div>
+        </div>
       </div>
-    <% end %>
-  </div>
-  <div id="results">
-    <p class="text-muted" v-if="running">Loading...</p>
-    <div id="results-html" v-if="!running" :class="{ 'query-error': error }"></div>
+    </div>
   </div>
 </div>
 
 <script>
-  <%= blazer_js_var "params", variable_params %>
-  <%= blazer_js_var "previewStatement", Hash[Blazer.data_sources.map { |k, v| [k, v.preview_statement] }] %>
+    <%= blazer_js_var "params", variable_params %>
+    <%= blazer_js_var "previewStatement", Hash[Blazer.data_sources.map { |k, v| [k, v.preview_statement] }] %>
 
-  function click_dataset(dataset) {
-      dataset_id = $(dataset).text()
-      data = { 'dataset_id': dataset_id }
-      console.log(data['dataset_id'])
+    $( window ).on( "load", function() {
+        $('.container').attr('class', 'con')
+    });
 
-      $.ajax({
-          url: '/blazer/queries/summarize_table',
-          data: data,
-          type: 'GET',
-          success: function (result) {
-              console.log(result['table'])
-              $.each( result['table'], function (i, val) {
-                  $('#' + dataset_id).append('<p style="margin: 0">' + val + '</p>')
-              });
-          }
-      })
-  };
+    function click_dataset(dataset) {
+        dataset_id = $(dataset).text()
+        data = { 'dataset_id': dataset_id }
+        var html_str = ''
 
-  var app = new Vue({
-    el: "#app",
-    data: {
-      running: false,
-      results: "",
-      error: false,
-      dataSource: "",
-      selectize: null,
-      editorHeight: "180px"
-    },
-    computed: {
-      dataSourcePath: function() {
-        return Routes.schema_queries_path({data_source: this.dataSource})
-      }
-    },
-    methods: {
-      run: function(e) {
-        this.running = true
-        this.results = ""
-        this.error = false
-        cancelAllQueries()
+        $('#' + dataset_id).html('<p>로딩 중...</p>')
 
-        var data = $.extend({}, params, {statement: this.getSQL(), data_source: $("#query_data_source").val()})
-
-        var _this = this
-
-        runQuery(data, function (data) {
-          _this.running = false
-          _this.showResults(data)
-
-          errorLine = _this.getErrorLine()
-          if (errorLine) {
-            editor.getSession().addGutterDecoration(errorLine - 1, "error")
-            editor.scrollToLine(errorLine, true, true, function () {})
-            editor.gotoLine(errorLine, 0, true)
-            editor.focus()
-          }
-        }, function (data) {
-          _this.running = false
-          _this.error = true
-          _this.showResults(data)
+        $.ajax({
+            url: '/blazer/queries/summarize_table',
+            data: data,
+            type: 'GET',
+            success: function (result) {
+                $.each( result['table'], function (i, val) {
+                    html_str += '<p id="' + val + '" style="margin: 0">' + val + '</p>'
+                });
+                $('#' + dataset_id).html(html_str)
+            }
         })
-      },
-      cancel: function(e) {
-        this.running = false
-        cancelAllQueries()
-      },
-      updateDataSource: function(dataSource) {
-        this.dataSource = dataSource
-        var selectize = this.selectize
-        selectize.clearOptions()
+    };
 
-        if (this.tablesXhr) {
-          this.tablesXhr.abort()
+    var app = new Vue({
+        el: "#app",
+        data: {
+            running: false,
+            results: "",
+            error: false,
+            dataSource: "",
+            selectize: null,
+            editorHeight: "180px"
+        },
+        computed: {
+            dataSourcePath: function() {
+                return Routes.schema_queries_path({data_source: this.dataSource})
+            }
+        },
+        methods: {
+            run: function(e) {
+                this.running = true
+                this.results = ""
+                this.error = false
+                cancelAllQueries()
+
+                var data = $.extend({}, params, {statement: this.getSQL(), data_source: $("#query_data_source").val()})
+
+                var _this = this
+
+                runQuery(data, function (data) {
+                    _this.running = false
+                    _this.showResults(data)
+
+                    errorLine = _this.getErrorLine()
+                    if (errorLine) {
+                        editor.getSession().addGutterDecoration(errorLine - 1, "error")
+                        editor.scrollToLine(errorLine, true, true, function () {})
+                        editor.gotoLine(errorLine, 0, true)
+                        editor.focus()
+                    }
+                }, function (data) {
+                    _this.running = false
+                    _this.error = true
+                    _this.showResults(data)
+                })
+            },
+            cancel: function(e) {
+                this.running = false
+                cancelAllQueries()
+            },
+            updateDataSource: function(dataSource) {
+                this.dataSource = dataSource
+                var selectize = this.selectize
+                selectize.clearOptions()
+
+                if (this.tablesXhr) {
+                    this.tablesXhr.abort()
+                }
+
+                this.tablesXhr = $.getJSON(Routes.tables_queries_path({data_source: this.dataSource}), function(data) {
+                    var newOptions = []
+                    for (var i = 0; i < data.length; i++) {
+                        newOptions.push({text: data[i], value: data[i]})
+                    }
+                    selectize.clearOptions()
+                    selectize.addOption(newOptions)
+                    selectize.refreshOptions(false)
+                })
+            },
+            showEditor: function() {
+                var _this = this
+
+                editor = ace.edit("editor")
+                editor.setTheme("ace/theme/twilight")
+                editor.getSession().setMode("ace/mode/sql")
+                editor.setOptions({
+                    enableBasicAutocompletion: false,
+                    enableSnippets: false,
+                    enableLiveAutocompletion: false,
+                    highlightActiveLine: false,
+                    fontSize: 12,
+                    minLines: 10
+                })
+                editor.renderer.setShowGutter(true)
+                editor.renderer.setPrintMarginColumn(false)
+                editor.renderer.setPadding(10)
+                editor.getSession().setUseWrapMode(true)
+                editor.commands.addCommand({
+                    name: "run",
+                    bindKey: {win: "Ctrl-Enter",  mac: "Command-Enter"},
+                    exec: function(editor) {
+                        _this.run()
+                    },
+                    readOnly: false // false if this command should not apply in readOnly mode
+                })
+                // fix command+L
+                editor.commands.removeCommands(["gotoline", "find"])
+
+                this.editor = editor
+
+                editor.getSession().on("change", function () {
+                    $("#query_statement").val(editor.getValue())
+                    _this.adjustHeight()
+                })
+                this.adjustHeight()
+                editor.focus()
+            },
+            adjustHeight: function() {
+                // http://stackoverflow.com/questions/11584061/
+                var editor = this.editor
+                var lines = editor.getSession().getScreenLength()
+                if (lines < 9) {
+                    lines = 9
+                }
+
+                this.editorHeight = ((lines + 1) * 16).toString() + "px"
+
+                Vue.nextTick(function () {
+                    editor.resize()
+                })
+            },
+            getSQL: function() {
+                var selectedText = editor.getSelectedText()
+                var text = selectedText.length < 10 ? editor.getValue() : selectedText
+                return text.replace(/\n/g, "\r\n")
+            },
+            getErrorLine: function() {
+                var editor = this.editor
+                var errorLine = this.results.substring(0, 100).includes("alert-danger") && /LINE (\d+)/g.exec(this.results)
+
+                if (errorLine) {
+                    errorLine = parseInt(errorLine[1], 10)
+                    if (editor.getSelectedText().length >= 10) {
+                        errorLine += editor.getSelectionRange().start.row
+                    }
+                    return errorLine
+                }
+            },
+            showResults(data) {
+                // can't do it the Vue way due to script tags in results
+                // this.results = data
+
+                Vue.nextTick(function () {
+                    $("#results-html").html(data)
+                })
+            }
+        },
+        mounted: function() {
+            var _this = this
+
+            var $select = $("#table_names").selectize({})
+            var selectize = $select[0].selectize
+            selectize.on("change", function(val) {
+                editor.setValue(previewStatement[_this.dataSource].replace("{table}", val), 1)
+                _this.run()
+                selectize.clear(true)
+                selectize.blur()
+            })
+            this.selectize = selectize
+
+            this.updateDataSource($("#query_data_source").val())
+
+            var $dsSelect = $("#query_data_source").selectize({})
+            var dsSelectize = $dsSelect[0].selectize
+            dsSelectize.on("change", function(val) {
+                _this.updateDataSource(val)
+                dsSelectize.blur()
+            })
+
+            this.showEditor()
         }
-
-        this.tablesXhr = $.getJSON(Routes.tables_queries_path({data_source: this.dataSource}), function(data) {
-          var newOptions = []
-          for (var i = 0; i < data.length; i++) {
-            newOptions.push({text: data[i], value: data[i]})
-          }
-          selectize.clearOptions()
-          selectize.addOption(newOptions)
-          selectize.refreshOptions(false)
-        })
-      },
-      showEditor: function() {
-        var _this = this
-
-        editor = ace.edit("editor")
-        editor.setTheme("ace/theme/twilight")
-        editor.getSession().setMode("ace/mode/sql")
-        editor.setOptions({
-          enableBasicAutocompletion: false,
-          enableSnippets: false,
-          enableLiveAutocompletion: false,
-          highlightActiveLine: false,
-          fontSize: 12,
-          minLines: 10
-        })
-        editor.renderer.setShowGutter(true)
-        editor.renderer.setPrintMarginColumn(false)
-        editor.renderer.setPadding(10)
-        editor.getSession().setUseWrapMode(true)
-        editor.commands.addCommand({
-          name: "run",
-          bindKey: {win: "Ctrl-Enter",  mac: "Command-Enter"},
-          exec: function(editor) {
-            _this.run()
-          },
-          readOnly: false // false if this command should not apply in readOnly mode
-        })
-        // fix command+L
-        editor.commands.removeCommands(["gotoline", "find"])
-
-        this.editor = editor
-
-        editor.getSession().on("change", function () {
-          $("#query_statement").val(editor.getValue())
-          _this.adjustHeight()
-        })
-        this.adjustHeight()
-        editor.focus()
-      },
-      adjustHeight: function() {
-        // http://stackoverflow.com/questions/11584061/
-        var editor = this.editor
-        var lines = editor.getSession().getScreenLength()
-        if (lines < 9) {
-          lines = 9
-        }
-
-        this.editorHeight = ((lines + 1) * 16).toString() + "px"
-
-        Vue.nextTick(function () {
-          editor.resize()
-        })
-      },
-      getSQL: function() {
-        var selectedText = editor.getSelectedText()
-        var text = selectedText.length < 10 ? editor.getValue() : selectedText
-        return text.replace(/\n/g, "\r\n")
-      },
-      getErrorLine: function() {
-        var editor = this.editor
-        var errorLine = this.results.substring(0, 100).includes("alert-danger") && /LINE (\d+)/g.exec(this.results)
-
-        if (errorLine) {
-          errorLine = parseInt(errorLine[1], 10)
-          if (editor.getSelectedText().length >= 10) {
-            errorLine += editor.getSelectionRange().start.row
-          }
-          return errorLine
-        }
-      },
-      showResults(data) {
-        // can't do it the Vue way due to script tags in results
-        // this.results = data
-
-        Vue.nextTick(function () {
-          $("#results-html").html(data)
-        })
-      }
-    },
-    mounted: function() {
-      var _this = this
-
-      var $select = $("#table_names").selectize({})
-      var selectize = $select[0].selectize
-      selectize.on("change", function(val) {
-        editor.setValue(previewStatement[_this.dataSource].replace("{table}", val), 1)
-        _this.run()
-        selectize.clear(true)
-        selectize.blur()
-      })
-      this.selectize = selectize
-
-      this.updateDataSource($("#query_data_source").val())
-
-      var $dsSelect = $("#query_data_source").selectize({})
-      var dsSelectize = $dsSelect[0].selectize
-      dsSelectize.on("change", function(val) {
-        _this.updateDataSource(val)
-        dsSelectize.blur()
-      })
-
-      this.showEditor()
-    }
-  })
+    })
 </script>
