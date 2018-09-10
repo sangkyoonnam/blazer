@@ -1,15 +1,15 @@
 module Blazer
   module Adapters
     class BigQueryAdapter < BaseAdapter
-      def run_statement(statement, comment)
+      def run_statement(statement, comment, options)
         columns = []
         rows = []
         error = nil
 
         begin
-          options = {}
           options[:timeout] = data_source.timeout.to_i * 1000 if data_source.timeout
-          results = bigquery.query(statement, options) # ms
+          results = bigquery.query(statement, external: options[:external]) 
+
           if results.present?  # TODO: 왜 기존 소스는 complete?로 되어 있는지 확인
             columns = results.first.keys.map(&:to_s) if results.size > 0
             rows = results.map(&:values)

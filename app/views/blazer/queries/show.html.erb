@@ -3,20 +3,29 @@
 <div class="topbar">
   <div class="container">
     <div class="row" style="padding-top: 13px;">
-      <div class="col-sm-9">
+      <div class="col-sm-6">
         <%= render partial: "blazer/nav" %>
-        <h3 style="margin: 0; line-height: 34px; display: inline;">
+        <h3 style="margin: 0; line-height: 34px; display: inline;overflow: hidden;white-space: nowrap;text-overflow: ellipsis;position: absolute;width: 70%;">
           <%= @query.name %>
         </h3>
       </div>
-      <div class="col-sm-3 text-right">
+      <div class="col-sm-2 text-right">
+        <h5 style="margin: 0; line-height: 34px; display: inline;" id="sql_count">
+        </h5>
+      </div>
+      <div class="col-sm-4 text-right">
         <%= link_to "Edit", edit_query_path(@query, variable_params), class: "btn btn-default", disabled: !@query.editable?(blazer_user) %>
         <%= link_to "Fork", new_query_path(variable_params.merge(fork_query_id: @query.id, data_source: @query.data_source, name: @query.name)), class: "btn btn-info" %>
 
         <% if !@error && @success %>
           <%= button_to "Download", run_queries_path(query_id: @query.id, format: "csv"), params: {statement: @statement}, class: "btn btn-primary" %>
         <% end %>
+        <button onclick="export_to(event);" class= "btn btn-warning">Export</button>
+        <button onclick="upload_s3();" class= "btn btn-success">리타겟팅 링크 추출</button>
       </div>
+    </div>
+    <div class="row">
+      <div class="text-right" id="retargeting_link" style="color: red;"> <%= params[:file_path] if params[:file_path].present? %> </div>
     </div>
   </div>
 </div>
@@ -39,35 +48,11 @@
 
 <%= render partial: "blazer/variables", locals: {action: query_path(@query)} %>
 
-<pre id="code"><code><%= @statement %></code></pre>
-
-<% if @success %>
-  <div id="results">
-    <p class="text-muted">Loading...</p>
-  </div>
-
-  <script>
-    function showRun(data) {
-      $("#results").html(data)
-      $("#results table").stupidtable().stickyTableHeaders({fixedOffset: 60})
-    }
-
-    function showError(message) {
-      $("#results").addClass("query-error").html(message)
-    }
-
-    <%= blazer_js_var "data", variable_params.merge(statement: @statement, query_id: @query.id) %>
-
-    runQuery(data, showRun, showError)
-  </script>
-<% end %>
+<div id="results">
+  <p class="text-muted"></p>
+</div>
 
 <% unless %w(mongodb elasticsearch).include?(Blazer.data_sources[@query.data_source].adapter) %>
-  <script>
-    // do not highlight really long queries
-    // this can lead to performance issues
-    if ($("code").text().length < 10000) {
-      hljs.highlightBlock(document.getElementById("code"));
-    }
-  </script>
+    <script>
+    </script>
 <% end %>
